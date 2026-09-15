@@ -47,7 +47,8 @@ final class SessionStore: ObservableObject {
             try db.query("""
                 SELECT id, name, working_dir, tags, agent_file, initial_prompt,
                        status, created_at, updated_at, last_opened_at,
-                       folder_id, sort_order, has_pending_action, source, missing, imported_from
+                       folder_id, sort_order, has_pending_action, source, missing, imported_from,
+                       is_favorite
                 FROM sessions
                 ORDER BY COALESCE(folder_id, 0), sort_order ASC, updated_at DESC
             """) { row in
@@ -239,6 +240,16 @@ final class SessionStore: ObservableObject {
         return (fresh, true)
     }
 
+    func toggleFavorite(_ id: Int64) {
+        guard let current = sessions.first(where: { $0.id == id }) else { return }
+        do {
+            try db.writeStatement("UPDATE sessions SET is_favorite=? WHERE id=?", [current.isFavorite ? 0 : 1, id])
+            reload()
+        } catch {
+            appLog("[SessionStore] toggleFavorite failed: \(error)")
+        }
+    }
+
     func setPendingAction(_ id: Int64, _ pending: Bool) {
         do {
             try db.writeStatement(
@@ -297,7 +308,8 @@ final class SessionStore: ObservableObject {
             try db.query("""
                 SELECT id, name, working_dir, tags, agent_file, initial_prompt,
                        status, created_at, updated_at, last_opened_at,
-                       folder_id, sort_order, has_pending_action, source, missing, imported_from
+                       folder_id, sort_order, has_pending_action, source, missing, imported_from,
+                       is_favorite
                 FROM sessions WHERE working_dir=? LIMIT 1
             """, [dir]) { row in
                 found = Self.decode(row)
@@ -338,7 +350,8 @@ final class SessionStore: ObservableObject {
             hasPendingAction: row.bool(12),
             source: SessionSource(rawValue: row.string(13)) ?? .manual,
             missing: row.bool(14),
-            importedFrom: row.stringOrNil(15)
+            importedFrom: row.stringOrNil(15),
+            isFavorite: row.bool(16)
         )
     }
 }

@@ -3,6 +3,11 @@ import SwiftUI
 struct SessionRow: View {
     let session: Session
     let isActive: Bool
+    var onToggleFavorite: () -> Void = {}
+    @ObservedObject private var github = GitHubDetector.shared
+    @State private var hovering = false
+
+    private var isGitHub: Bool { github.isGitHub(session.workingDir) }
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -13,12 +18,16 @@ struct SessionRow: View {
                 HStack(spacing: 5) {
                     Text(session.name)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Theme.text1)
+                        .foregroundStyle(isActive ? Theme.selectionText : Theme.text1)
                         .lineLimit(1)
+                    if isGitHub {
+                        GitHubMark(size: 11, color: isActive ? Theme.selectionText.opacity(0.85) : Theme.text2)
+                    }
                     if session.missing {
                         StatusPill(text: "missing", kind: .attention)
                     }
                     Spacer(minLength: 0)
+                    favoriteButton
                 }
 
                 HStack(spacing: 4) {
@@ -54,9 +63,24 @@ struct SessionRow: View {
         .background(rowBackground)
         .overlay(
             RoundedRectangle(cornerRadius: Theme.rs)
-                .stroke(isActive ? Theme.borderActive : .clear, lineWidth: 1)
+                .stroke(isActive ? Theme.selection.opacity(0.8) : .clear, lineWidth: 1)
         )
         .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+    }
+
+    @ViewBuilder
+    private var favoriteButton: some View {
+        // A gold star when favorited; on hover an outline star invites pinning.
+        if session.isFavorite || hovering {
+            Button(action: onToggleFavorite) {
+                Image(systemName: session.isFavorite ? "star.fill" : "star")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(session.isFavorite ? Theme.star : Theme.textMuted)
+            }
+            .buttonStyle(.plain)
+            .help(session.isFavorite ? "Remove from favorites" : "Add to favorites")
+        }
     }
 
     @ViewBuilder
@@ -84,6 +108,6 @@ struct SessionRow: View {
 
     private var rowBackground: some View {
         RoundedRectangle(cornerRadius: Theme.rs)
-            .fill(isActive ? Theme.accentGlow : Color.clear)
+            .fill(isActive ? Theme.selection : (hovering ? Theme.bgS : Color.clear))
     }
 }

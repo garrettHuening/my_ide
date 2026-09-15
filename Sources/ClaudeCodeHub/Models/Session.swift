@@ -28,6 +28,7 @@ struct Session: Identifiable, Hashable {
     var source: SessionSource
     var missing: Bool
     var importedFrom: String?
+    var isFavorite: Bool = false
 
     var tags: [String] {
         tagsRaw.split(separator: ",")

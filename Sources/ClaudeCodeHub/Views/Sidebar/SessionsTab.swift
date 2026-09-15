@@ -13,10 +13,26 @@ struct SessionsTab: View {
 
     @State private var showNewFolder: Bool = false
     @State private var newFolderName: String = ""
+    @State private var filter: SessionFilter = .all
+
+    enum SessionFilter: String, CaseIterable, Identifiable {
+        case favorites = "Favorites"
+        case active = "Active"
+        case all = "All"
+        var id: String { rawValue }
+        var icon: String {
+            switch self {
+            case .favorites: return "star.fill"
+            case .active: return "bolt.fill"
+            case .all: return "square.stack.3d.up.fill"
+            }
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             actionRow
+            filterBar
             listSection
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -94,11 +110,41 @@ struct SessionsTab: View {
         .padding(.bottom, 6)
     }
 
+    private var filterBar: some View {
+        HStack(spacing: 4) {
+            ForEach(SessionFilter.allCases) { f in
+                FilterPill(
+                    title: f.rawValue,
+                    icon: f.icon,
+                    count: count(for: f),
+                    isOn: filter == f,
+                    action: { filter = f }
+                )
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.bottom, 8)
+    }
+
+    private func count(for f: SessionFilter) -> Int {
+        sessions.displayedSessions.filter { matches($0, filter: f) }.count
+    }
+
+    private func matches(_ s: Session, filter f: SessionFilter) -> Bool {
+        switch f {
+        case .favorites: return s.isFavorite
+        case .active: return s.status == .running || s.hasPendingAction
+        case .all: return true
+        }
+    }
+
     private var filtered: [Session] {
         let q = searchText.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return sessions.displayedSessions }
         return sessions.displayedSessions.filter { s in
-            s.name.lowercased().contains(q)
+            guard matches(s, filter: filter) else { return false }
+            guard !q.isEmpty else { return true }
+            return s.name.lowercased().contains(q)
                 || s.workingDir.lowercased().contains(q)
                 || s.tagsRaw.lowercased().contains(q)
         }
@@ -128,20 +174,34 @@ struct SessionsTab: View {
 
     @ViewBuilder
     private var emptyState: some View {
-        if searchText.isEmpty {
-            EmptyState(
-                title: "No sessions",
-                subtitle: "Press + to create one, or refresh to import from\n\(shortPath(app.prefs.claudeStateDir)).",
-                systemImage: "tray"
-            )
-            .frame(minHeight: 220)
-        } else {
+        if !searchText.isEmpty {
             EmptyState(
                 title: "No matches",
                 subtitle: "Nothing in this list matches \"\(searchText)\".",
                 systemImage: "magnifyingglass"
             )
             .frame(minHeight: 180)
+        } else if filter == .favorites {
+            EmptyState(
+                title: "No favorites yet",
+                subtitle: "Tap the star on a session to pin it here.",
+                systemImage: "star"
+            )
+            .frame(minHeight: 180)
+        } else if filter == .active {
+            EmptyState(
+                title: "Nothing running",
+                subtitle: "Sessions that are running or waiting on you show up here.",
+                systemImage: "bolt"
+            )
+            .frame(minHeight: 180)
+        } else {
+            EmptyState(
+                title: "No sessions",
+                subtitle: "Press + to create one, or refresh to import from\n\(shortPath(app.prefs.claudeStateDir)).",
+                systemImage: "tray"
+            )
+            .frame(minHeight: 220)
         }
     }
 
@@ -208,7 +268,8 @@ struct SessionsTab: View {
     private func sessionRowView(_ session: Session, indent: Bool) -> some View {
         SessionRow(
             session: session,
-            isActive: session.id == sessions.activeSessionID
+            isActive: session.id == sessions.activeSessionID,
+            onToggleFavorite: { sessions.toggleFavorite(session.id) }
         )
         .padding(.leading, indent ? 18 : 0)
         .onTapGesture { sessions.switchTo(session.id) }
@@ -216,6 +277,9 @@ struct SessionsTab: View {
             NSItemProvider(object: "\(session.id)" as NSString)
         }
         .contextMenu {
+            Button(session.isFavorite ? "Remove from Favorites" : "Add to Favorites") {
+                sessions.toggleFavorite(session.id)
+            }
             Button("Rename…") {
                 renameDraft = session.name
                 renameSessionTarget = session
@@ -259,6 +323,39 @@ struct SessionsTab: View {
 
     private func shortPath(_ p: String) -> String {
         p.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+    }
+}
+
+/// A compact segmented filter pill (Favorites · Active · All) with an icon and count.
+private struct FilterPill: View {
+    let title: String
+    let icon: String
+    let count: Int
+    let isOn: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 8, weight: .bold))
+                Text(title)
+                    .font(.system(size: 10, weight: .semibold))
+                Text("\(count)")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(isOn ? Theme.selectionText.opacity(0.7) : Theme.textMuted)
+            }
+            .foregroundStyle(isOn ? Theme.selectionText : Theme.text2)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(isOn ? Theme.selection : Theme.bgS)
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.rs)
+                    .stroke(isOn ? Theme.selection.opacity(0.9) : Theme.border, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: Theme.rs, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 

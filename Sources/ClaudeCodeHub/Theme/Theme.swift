@@ -35,6 +35,12 @@ enum Theme {
     static let teal = Color(hex: 0x8db5a8)
     static let pink = Color(hex: 0xb87d97)
 
+    // Favorite star (warm gold) and the selected-row wash, matching the reference screenshot.
+    static let star = Color(hex: 0xe0b341)
+    static let starDim = Color(hex: 0x4a4227)
+    static let selection = Color(hex: 0x1b3a5c)   // muted steel-blue selected row
+    static let selectionText = Color(hex: 0xe8f0fb)
+
     // Layout
     static let sidebarWidth: CGFloat = 272
     static let rightPanelWidth: CGFloat = 380

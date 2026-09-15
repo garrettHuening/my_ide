@@ -1,7 +1,7 @@
 import Foundation
 
 enum Schema {
-    static let currentVersion: Int64 = 4
+    static let currentVersion: Int64 = 5
 
     static func migrate(_ db: Database) throws {
         try db.exec("""
@@ -32,6 +32,12 @@ enum Schema {
             try db.exec("ALTER TABLE sessions ADD COLUMN claude_session_id TEXT;")
             try setSchemaVersion(db, 4)
             appLog("[DB] migrated to v4")
+        }
+        if version < 5 {
+            // User-pinned favorite sessions (shown by the Favorites filter, gold star).
+            try db.exec("ALTER TABLE sessions ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;")
+            try setSchemaVersion(db, 5)
+            appLog("[DB] migrated to v5")
         }
     }
 
