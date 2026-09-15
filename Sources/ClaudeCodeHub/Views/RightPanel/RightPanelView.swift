@@ -1,14 +1,11 @@
 import SwiftUI
 import CCHSubagents
 
-/// Right panel: filter chips on top (All · Agents · Task · Bug · Feature · Helper), then the tab strip
-/// Subagents | Plans | Scripts, plus MCPs | Agents | Skills while the Agents chip is on.
+/// Right panel: the tab strip Subagents | Plans | Scripts | MCPs | Agents | Skills.
 struct RightPanelView: View {
     @EnvironmentObject var sessions: SessionStore
     @ObservedObject private var subagents = SubagentsClient.shared
     @State private var activeTab: Tab = .subagents
-    @State private var agentsMode = false
-    @State private var categoryFilter: Set<SubagentCategory> = []
     @StateObject private var scripts = ScriptsModel()
 
     enum Tab: String, CaseIterable, Hashable {
@@ -20,40 +17,16 @@ struct RightPanelView: View {
         case skills = "Skills"
     }
 
-    private var visibleTabs: [Tab] {
-        [.subagents, .plans, .scripts] + (agentsMode ? [.mcps, .agents, .skills] : [])
-    }
+    private var visibleTabs: [Tab] { Tab.allCases }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            chips
-            Divider().background(Theme.border)
             tabStrip
             Divider().background(Theme.border)
             tabContent
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Theme.bg2)
-    }
-
-    private var chips: some View {
-        HStack(spacing: 5) {
-            FilterChip(title: "All", isOn: categoryFilter.isEmpty) { categoryFilter = [] }
-            FilterChip(title: "Agents", isOn: agentsMode) {
-                agentsMode.toggle()
-                if !agentsMode, [.mcps, .agents, .skills].contains(activeTab) { activeTab = .subagents }
-            }
-            ForEach(SubagentCategory.allCases, id: \.self) { category in
-                FilterChip(title: category.displayName, isOn: categoryFilter.contains(category)) {
-                    if categoryFilter.contains(category) { categoryFilter.remove(category) } else { categoryFilter.insert(category) }
-                    activeTab = .subagents
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 10)
         .background(Theme.bg2)
     }
 
@@ -87,7 +60,7 @@ struct RightPanelView: View {
     @ViewBuilder
     private var tabContent: some View {
         switch activeTab {
-        case .subagents: SubagentsTab(categoryFilter: categoryFilter)
+        case .subagents: SubagentsTab(categoryFilter: [])
         case .plans: plansTab
         case .scripts: ScriptsTab(model: scripts)
         case .mcps:
@@ -140,28 +113,5 @@ private struct PlaceholderList: View {
                 .padding(.bottom, 6)
             EmptyState(title: title, subtitle: subtitle, systemImage: systemImage)
         }
-    }
-}
-
-private struct FilterChip: View {
-    let title: String
-    let isOn: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(isOn ? Theme.bg1 : Theme.text2)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 4)
-                .background(isOn ? Theme.accent : Theme.bgS)
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.rs)
-                        .stroke(isOn ? Theme.accent : Theme.border, lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: Theme.rs, style: .continuous))
-        }
-        .buttonStyle(.plain)
     }
 }
