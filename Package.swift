@@ -22,6 +22,11 @@ let package = Package(
                 .linkedLibrary("sqlite3")
             ]
         ),
+        .target(
+            name: "CCHSubagents",
+            dependencies: ["CCHMemory"],
+            path: "Sources/CCHSubagents"
+        ),
         .executableTarget(
             name: "cch-mcp",
             dependencies: ["CCHMemory"],
@@ -38,6 +43,11 @@ let package = Package(
             linkerSettings: [
                 .linkedLibrary("sqlite3")
             ]
+        ),
+        .testTarget(
+            name: "CCHSubagentsTests",
+            dependencies: ["CCHSubagents"],
+            path: "Tests/CCHSubagentsTests"
         ),
         .testTarget(
             name: "CCHMemoryTests",
