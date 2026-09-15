@@ -2,6 +2,7 @@ import Foundation
 import AppKit
 import SwiftTerm
 import Combine
+import CCHMemory
 
 /// One terminal per session, kept alive across UI swaps so the PTY (and Claude
 /// process running in it) doesn't die when the user navigates away. The actual

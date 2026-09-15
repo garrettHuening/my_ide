@@ -36,6 +36,26 @@ case "serve":
     let role = environment["CCH_ROLE"] ?? "external"
     StdioServer(store: openStore(), console: console, directory: directory, source: "claude:\(role)").run()
 
+case "hook" where arguments.dropFirst().first == "session-snapshot":
+    // PreCompact / SessionEnd: hand off to a detached summarizer and return at once.
+    let payload = readStdinJSON()
+    guard let session = payload["session_id"] as? String, let transcript = payload["transcript_path"] as? String else { exit(0) }
+    let cwd = payload["cwd"] as? String ?? FileManager.default.currentDirectoryPath
+    let event = payload["hook_event_name"] as? String ?? "unknown"
+    if !Detached.spawn(executable: Detached.selfPath,
+                       arguments: ["snapshot", "--session", session, "--transcript", transcript, "--cwd", cwd, "--event", event]) {
+        try? console?.append(domain: "session", severity: .error, source: "hook:\(event)", message: "could not start session summarizer", sessionID: session)
+    }
+    exit(0)
+
+case "snapshot":
+    let flags = Flags(Array(arguments.dropFirst()))
+    guard let session = flags["--session"], let transcript = flags["--transcript"], let cwd = flags["--cwd"] else {
+        fail("usage: cch-mcp snapshot --session ID --transcript PATH --cwd DIR [--event NAME]")
+    }
+    SessionSummarizer(store: openStore(), console: console).run(sessionID: session, transcriptPath: transcript,
+                                                                cwd: cwd, event: flags["--event"] ?? "manual")
+
 case "hook":
     let event = arguments.dropFirst().first ?? ""
     let payload = readStdinJSON()

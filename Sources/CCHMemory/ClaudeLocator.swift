@@ -2,8 +2,8 @@ import Foundation
 
 /// Find the `claude` CLI on disk. The user's shell alias isn't visible to a non-login
 /// process, so we probe well-known locations before falling back to PATH.
-enum ClaudeLocator {
-    static func findExecutable() -> String? {
+public enum ClaudeLocator {
+    public static func findExecutable() -> String? {
         let home = NSHomeDirectory()
         let candidates = [
             "\(home)/.local/bin/claude",
@@ -27,7 +27,7 @@ enum ClaudeLocator {
 
     /// Build the environment array passed to claude's PTY child.
     /// We start from our own env (which contains PATH, HOME, etc.) and overlay TERM/LANG.
-    static func env(extraPath: String? = nil) -> [String] {
+    public static func env(extraPath: String? = nil) -> [String] {
         var env = ProcessInfo.processInfo.environment
         env["TERM"] = "xterm-256color"
         if env["LANG"] == nil { env["LANG"] = "en_US.UTF-8" }

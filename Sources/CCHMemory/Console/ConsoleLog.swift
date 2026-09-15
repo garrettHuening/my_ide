@@ -45,12 +45,11 @@ public final class ConsoleLog {
             """)
     }
 
-    @discardableResult
     public func append(domain: String, severity: LogSeverity, source: String, message: String,
-                       projectID: Int64? = nil, sessionID: String? = nil, dataJSON: String? = nil) throws -> Int64 {
+                       projectID: Int64? = nil, sessionID: String? = nil, dataJSON: String? = nil) throws {
         let domain = domain.trimmingCharacters(in: .whitespaces)
         guard !domain.isEmpty else { throw MemoryError.invalid("domain must not be empty") }
-        return try db.run(
+        try db.run(
             "INSERT INTO log(at, domain, severity, source, project_id, session_id, message, data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [Date(), domain, severity.rawValue, source, projectID, sessionID, message, dataJSON]
         )
