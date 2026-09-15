@@ -4,6 +4,7 @@ import SwiftUI
 /// .sbar pattern. Shows context, session state, and a few quick indicators.
 struct StatusBar: View {
     @EnvironmentObject var sessions: SessionStore
+    @ObservedObject private var sweeps = SweepRunner.shared
 
     var body: some View {
         HStack(spacing: 14) {
@@ -11,6 +12,9 @@ struct StatusBar: View {
             indicator(color: Theme.borderActive, label: "ctx 0%")
             indicator(color: Theme.borderActive, label: "0 panes")
             indicator(color: Theme.borderActive, label: "0 tasks")
+            if !sweeps.running.isEmpty {
+                indicator(color: Theme.yellow, label: "indexing \(sweeps.running.values.sorted().joined(separator: ", "))…")
+            }
             Spacer()
             indicator(color: Theme.borderActive, label: workingDirLabel)
             indicator(color: Theme.borderActive, label: "v0.1")

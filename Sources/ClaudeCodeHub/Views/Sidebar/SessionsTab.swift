@@ -228,6 +228,7 @@ struct SessionsTab: View {
                     }
                 }
             }
+            Button("Re-sweep Project") { SweepRunner.shared.sweepNow(workingDir: session.workingDir) }
             Divider()
             Button("Delete", role: .destructive) { sessions.delete(session.id) }
         }

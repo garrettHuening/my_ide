@@ -3,7 +3,7 @@ import Foundation
 /// memory.db schema. Append-only and frozen rules are enforced here with triggers, so no
 /// caller (tool, dreaming job, or a bug in our own code) can rewrite bug history.
 enum MemorySchema {
-    static let currentVersion = 1
+    static let currentVersion = 2
 
     static func migrate(_ db: SQLiteConnection) throws {
         try db.exec("CREATE TABLE IF NOT EXISTS schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);")
@@ -14,7 +14,31 @@ enum MemorySchema {
                 try db.run("INSERT OR REPLACE INTO schema_meta(key, value) VALUES('version', '1')")
             }
         }
+        if version < 2 {
+            try db.transaction {
+                try db.exec(v2)
+                try db.run("INSERT OR REPLACE INTO schema_meta(key, value) VALUES('version', '2')")
+            }
+        }
     }
+
+    private static let v2 = """
+    CREATE TABLE sweeps (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id      INTEGER NOT NULL REFERENCES projects(id),
+        commit_sha      TEXT,
+        mode            TEXT NOT NULL,
+        status          TEXT NOT NULL,
+        model           TEXT,
+        memories_before INTEGER NOT NULL,
+        memories_after  INTEGER,
+        cost_usd        REAL,
+        error           TEXT,
+        started_at      REAL NOT NULL,
+        finished_at     REAL
+    );
+    CREATE INDEX idx_sweeps_project ON sweeps(project_id, started_at);
+    """
 
     private static let v1 = """
     CREATE TABLE projects (

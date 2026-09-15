@@ -6,10 +6,12 @@ struct RightPanelView: View {
     @EnvironmentObject var sessions: SessionStore
     @State private var activeTab: Tab = .panes
     @State private var activeFilters: Set<PaneFilter> = [.all]
+    @StateObject private var scripts = ScriptsModel()
 
     enum Tab: String, CaseIterable, Hashable {
         case tasks = "Tasks"
         case plans = "Plans"
+        case scripts = "Scripts"
         case panes = "Panes"
     }
 
@@ -64,6 +66,7 @@ struct RightPanelView: View {
         switch activeTab {
         case .tasks: tasksTab
         case .plans: plansTab
+        case .scripts: ScriptsTab(model: scripts)
         case .panes: panesTab
         }
     }
@@ -146,6 +149,7 @@ struct RightPanelView: View {
         switch tab {
         case .tasks: return "0/0"
         case .plans: return "0"
+        case .scripts: return "\(scripts.scripts.count)"
         case .panes: return "0"
         }
     }

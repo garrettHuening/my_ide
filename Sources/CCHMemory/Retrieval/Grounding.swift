@@ -78,7 +78,7 @@ public enum Grounding {
         }
     }
 
-    static func oneLine(_ text: String, max: Int = 200) -> String {
+    public static func oneLine(_ text: String, max: Int = 200) -> String {
         let flat = text.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\"", with: "'")
         return flat.count > max ? String(flat.prefix(max - 1)) + "…" : flat
     }

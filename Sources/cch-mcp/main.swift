@@ -94,6 +94,10 @@ case "log":
         fail("\(error)")
     }
 
+case "sweep-prompt":
+    // Debug: print the repo-sweep prompt the Hub sends (full sweep).
+    print(SweepPrompt.text(mode: .full, changedFiles: []))
+
 default:
-    fail("usage: cch-mcp serve | hook user-prompt-submit|stop | log --domain D --severity S message")
+    fail("usage: cch-mcp serve | hook user-prompt-submit|stop | log --domain D --severity S message | sweep-prompt")
 }

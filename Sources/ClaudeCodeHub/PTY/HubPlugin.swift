@@ -9,8 +9,13 @@ enum HubPlugin {
         let environment: [String]
     }
 
-    static var mainPluginDirectory: String? {
-        let path = Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/plugins/cch-main").path
+    static var mainPluginDirectory: String? { pluginDirectory("cch-main") }
+
+    /// Memory tools only, no hooks: used by headless repo sweeps.
+    static var sweepPluginDirectory: String? { pluginDirectory("cch-sweep") }
+
+    private static func pluginDirectory(_ name: String) -> String? {
+        let path = Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/plugins/\(name)").path
         return FileManager.default.fileExists(atPath: path) ? path : nil
     }
 

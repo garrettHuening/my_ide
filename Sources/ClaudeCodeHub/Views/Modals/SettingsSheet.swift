@@ -83,7 +83,7 @@ struct SettingsSheet: View {
             }
         }
         .padding(22)
-        .frame(width: 540, height: 470)
+        .frame(width: 540, height: 540)
         .background(Theme.bg2)
         .onAppear { dirField = prefs.claudeStateDir }
     }

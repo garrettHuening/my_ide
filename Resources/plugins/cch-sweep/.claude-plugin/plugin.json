@@ -1,0 +1,5 @@
+{
+  "name": "cch-sweep",
+  "version": "0.1.0",
+  "description": "Claude Code Hub repo sweep: memory tools only, no hooks."
+}
