@@ -40,6 +40,8 @@ Plugins shipped in `Resources/plugins` (loaded per launch with `--plugin-dir`): 
 - Pure rules live in the libraries with XCTest coverage; side effects (git, processes, XPC, SQLite) call them.
 - Bugs are append-only and bug learnings frozen — enforced by SQLite triggers; never work around them.
 - Feature version bumps are conservative (see `Dreaming.conservativeBumpRule`).
+- **Sidebar:** sessions can be favorited (`sessions.is_favorite`, gold star); the Favorites/Active/All pill row filters the list; `GitHubDetector` flags git repos whose `origin` is on github.com and `GitHubMark` draws the octocat from its SVG path.
+- **Sandbox escape hatch:** `ShellTools` provides the `run_outside_sandbox` MCP tool (main + subagent roles) that runs a command outside the Bash sandbox via a written script, logged to console domain `shell`; a `PostToolUse(Bash)` hook advises Claude to use it on sandbox denials. Claude decides — nothing bypasses silently.
 - Claude Code facts verified here: plugin MCP tools are named `mcp__plugin_<plugin>_<server>__<tool>`; plugin **commands** are namespaced-only but plugin **skills** work unprefixed; the folder-trust prompt defaults to "No, exit" (Down + Enter accepts); `UserPromptSubmit` `additionalContext` works in `-p` and interactive.
 
 ## Docs
