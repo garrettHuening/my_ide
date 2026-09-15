@@ -81,7 +81,7 @@ final class MemoryJobs: ObservableObject {
                 claude: claude,
                 arguments: SweepPrompt.arguments(prompt: SweepPrompt.text(mode: decision, changedFiles: changedFiles), pluginDirectory: plugin, model: model),
                 directory: root, environment: ["CCH_ROLE": "sweep", "CCH_SESSION_DIR": workingDir],
-                stderrPath: stderrPath("sweep-\(sweepID)"))
+                stderrPath: stderrPath("sweep-\(sweepID)"), timeout: JobLimits.sweep)
             try store.finishSweep(id: sweepID, projectID: project.id, succeeded: result.succeeded, costUSD: result.costUSD, error: result.error)
             let added = try store.sweepMemoriesAdded(sweepID: sweepID) ?? 0
             try? console?.append(domain: "sweep", severity: result.succeeded ? .info : .error, source: "hub",
@@ -99,6 +99,11 @@ final class MemoryJobs: ObservableObject {
 
     /// Checks every 15 minutes (and shortly after launch) for projects due for a dream.
     func startDreamScheduler() {
+        queue.async {
+            if let interrupted = try? MemoryStore(embedder: nil).markInterruptedJobs(), interrupted > 0 {
+                appLog("[MemoryJobs] marked \(interrupted) interrupted background job(s) from the previous launch", severity: .info)
+            }
+        }
         DispatchQueue.main.async {
             guard self.dreamTimer == nil else { return }
             self.dreamTimer = Timer.scheduledTimer(withTimeInterval: 15 * 60, repeats: true) { [weak self] _ in self?.dreamDueProjects() }
@@ -150,7 +155,7 @@ final class MemoryJobs: ObservableObject {
                 claude: claude,
                 arguments: Dreaming.arguments(prompt: Dreaming.prompt(projectName: project.name, candidateCount: candidates), pluginDirectory: plugin, model: model),
                 directory: project.root, environment: ["CCH_ROLE": "dream", "CCH_SESSION_DIR": project.root],
-                stderrPath: stderrPath("dream-\(dreamID)"))
+                stderrPath: stderrPath("dream-\(dreamID)"), timeout: JobLimits.dream)
             let summary = result.summaryLine(prefix: "Dreamed:")
             try store.finishDream(id: dreamID, succeeded: result.succeeded, costUSD: result.costUSD, summary: summary, error: result.error)
             try? console?.append(domain: "dreaming", severity: result.succeeded ? .info : .error, source: "hub",
@@ -185,7 +190,7 @@ final class MemoryJobs: ObservableObject {
                 if !isURL { arguments += ["--add-dir", source] }
                 let result = HeadlessClaude.run(claude: claude, arguments: arguments, directory: resolved.root,
                                                 environment: ["CCH_ROLE": "docs", "CCH_SESSION_DIR": workingDir],
-                                                stderrPath: self.stderrPath("docs-\(ingestionID)"))
+                                                stderrPath: self.stderrPath("docs-\(ingestionID)"), timeout: JobLimits.docs)
                 let added = try store.finishIngestion(id: ingestionID, projectID: project.id, succeeded: result.succeeded, costUSD: result.costUSD, error: result.error)
                 try? console?.append(domain: "docs", severity: result.succeeded ? .info : .error, source: "hub",
                                      message: result.succeeded

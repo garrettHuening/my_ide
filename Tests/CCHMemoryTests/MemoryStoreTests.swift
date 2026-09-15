@@ -101,3 +101,15 @@ final class MemoryStoreTests: MemoryTestCase {
         XCTAssertEqual(try store.strictness(), .strict)
     }
 }
+
+final class BranchPromotionTests: MemoryTestCase {
+    func testPromoteBranchRetagsMemoriesButNotFrozenLearnings() throws {
+        let m = try store.writeMemory(projectID: project.id, kind: .learning, title: "Worktree learning", body: "Found in a subagent.",
+                                      source: .session, branch: "cch/bug/3-fix").memory
+        let bug = try store.openBug(projectID: project.id, title: "Crash", symptom: "boom", featureID: nil, branch: "cch/bug/3-fix")
+        _ = try store.fixBug(projectID: project.id, number: bug.number, rootCause: "r", fixSummary: "f", commit: nil)
+        XCTAssertEqual(try store.promoteBranch("cch/bug/3-fix", to: "main"), 1)
+        XCTAssertEqual(try store.memory(id: m.id)?.branch, "main")
+        XCTAssertEqual(try store.bug(id: bug.id)?.branch, "cch/bug/3-fix")  // bug history is untouched
+    }
+}

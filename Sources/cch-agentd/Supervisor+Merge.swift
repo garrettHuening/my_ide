@@ -104,6 +104,10 @@ extension Supervisor {
         s.mergedAt = Date()
         try db.save(s)
         try db.setNote(id, nil)
+        if let target = s.baseBranch ?? git.branch(s.sessionDir),
+           let promoted = try? MemoryStore(embedder: nil).promoteBranch(s.branch, to: target), promoted > 0 {
+            log(.info, "promoted \(promoted) core memories from \(s.branch) to \(target)", subagent: s)
+        }
         cleanUp(s)
         log(.info, "merged\(mergeCommit.map { " in \($0.prefix(7))" } ?? "")", subagent: s)
         pushSnapshots()

@@ -357,6 +357,14 @@ public final class MemoryStore {
         } ?? nil
     }
 
+    /// After a branch merges, its mutable memories belong to the target branch (the promotion
+    /// marker merge-gated cloud sync will use). Bugs and bug learnings keep their history.
+    @discardableResult
+    public func promoteBranch(_ branch: String, to target: String) throws -> Int {
+        try db.run("UPDATE memories SET branch = ? WHERE branch = ? AND kind != 'bug-learning'", [target, branch])
+        return db.changes
+    }
+
     // MARK: Retrieval log
 
     public func logRetrieval(projectID: Int64?, sessionID: String?, prompt: String, memoryIDs: [Int64], bugIDs: [Int64]) throws {

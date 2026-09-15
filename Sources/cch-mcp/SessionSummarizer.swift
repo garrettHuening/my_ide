@@ -51,7 +51,7 @@ struct SessionSummarizer {
         let result = HeadlessClaude.run(claude: claude,
                                         arguments: ["-p", "--model", model, "--output-format", "json", "--no-session-persistence",
                                                     "--tools", "", "--strict-mcp-config"],
-                                        directory: cwd, stdin: prompt)
+                                        directory: cwd, stdin: prompt, timeout: JobLimits.sessionSummary)
         guard result.succeeded else { throw MemoryError.invalid("summarizer failed: \(result.error ?? "unknown")") }
         return result.text
     }

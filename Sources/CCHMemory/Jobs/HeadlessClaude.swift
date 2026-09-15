@@ -16,7 +16,7 @@ public struct HeadlessResult: Sendable {
 /// session summaries) and interprets the JSON result.
 public enum HeadlessClaude {
     public static func run(claude: String, arguments: [String], directory: String, environment: [String: String] = [:],
-                           stdin: String? = nil, stderrPath: String? = nil) -> HeadlessResult {
+                           stdin: String? = nil, stderrPath: String? = nil, timeout: TimeInterval? = nil) -> HeadlessResult {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: claude)
         process.arguments = arguments
@@ -43,8 +43,23 @@ public enum HeadlessClaude {
             input.fileHandleForWriting.write(Data(stdin.utf8))
             try? input.fileHandleForWriting.close()
         }
+        // Background jobs must not run away with tokens: terminate past the time limit.
+        var timedOut = false
+        let timer = timeout.map { limit -> DispatchWorkItem in
+            let item = DispatchWorkItem {
+                guard process.isRunning else { return }
+                timedOut = true
+                process.terminate()
+            }
+            DispatchQueue.global().asyncAfter(deadline: .now() + limit, execute: item)
+            return item
+        }
         let data = output.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
+        timer?.cancel()
+        if timedOut {
+            return HeadlessResult(succeeded: false, costUSD: nil, text: "", error: "stopped after the \(Int((timeout ?? 0) / 60))-minute time limit")
+        }
 
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         let text = json?["result"] as? String ?? String(data: data, encoding: .utf8) ?? ""
@@ -87,7 +102,25 @@ public enum DocsIngestion {
     }
 }
 
+public enum JobLimits {
+    public static let sweep: TimeInterval = 45 * 60
+    public static let dream: TimeInterval = 30 * 60
+    public static let docs: TimeInterval = 30 * 60
+    public static let sessionSummary: TimeInterval = 10 * 60
+}
+
 extension MemoryStore {
+    /// Jobs run as children of the app; at launch any job still marked running was cut off.
+    @discardableResult
+    public func markInterruptedJobs() throws -> Int {
+        var total = 0
+        for table in ["sweeps", "dreams", "ingestions"] {
+            try db.run("UPDATE \(table) SET status = 'failed', error = 'interrupted (app quit)', finished_at = ? WHERE status = 'running'", [Date()])
+            total += db.changes
+        }
+        return total
+    }
+
     public func startIngestion(projectID: Int64, source: String) throws -> Int64 {
         try db.run("INSERT INTO ingestions(project_id, source, status, memories_before, started_at) VALUES (?, ?, 'running', ?, ?)",
                    [projectID, source, try activeMemoryCount(projectID: projectID), Date()])
