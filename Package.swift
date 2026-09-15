@@ -15,16 +15,34 @@ let package = Package(
             path: "Sources/CForkpty",
             publicHeadersPath: "include"
         ),
+        .target(
+            name: "CCHMemory",
+            path: "Sources/CCHMemory",
+            linkerSettings: [
+                .linkedLibrary("sqlite3")
+            ]
+        ),
+        .executableTarget(
+            name: "cch-mcp",
+            dependencies: ["CCHMemory"],
+            path: "Sources/cch-mcp"
+        ),
         .executableTarget(
             name: "ClaudeCodeHub",
             dependencies: [
                 "CForkpty",
+                "CCHMemory",
                 .product(name: "SwiftTerm", package: "SwiftTerm")
             ],
             path: "Sources/ClaudeCodeHub",
             linkerSettings: [
                 .linkedLibrary("sqlite3")
             ]
+        ),
+        .testTarget(
+            name: "CCHMemoryTests",
+            dependencies: ["CCHMemory"],
+            path: "Tests/CCHMemoryTests"
         )
     ]
 )
