@@ -1,4 +1,5 @@
 import CCHMemory
+import CCHSubagents
 import Foundation
 
 // cch-mcp — Claude Code Hub's bridge into core memory.
@@ -60,23 +61,34 @@ case "snapshot":
 case "hook":
     let event = arguments.dropFirst().first ?? ""
     let payload = readStdinJSON()
-    let store = openStore()
-    // A hook must never hold up the prompt: give up after 1.5 s and print nothing.
-    var output = ""
-    let done = DispatchSemaphore(value: 0)
-    DispatchQueue.global(qos: .userInitiated).async {
-        switch event {
-        case "user-prompt-submit": output = HookHandlers.userPromptSubmit(payload: payload, store: store, console: console)
-        case "stop": output = HookHandlers.stop(payload: payload, store: store, console: console)
-        default: break
+    let toolPrefix = environment["CCH_TOOL_PREFIX"] ?? MemoryTools.toolPrefix
+    // A hook must never hold up the prompt: memory work gets 1.5 s, the subagent service 3 s.
+    var memoryOutput = ""
+    if event == "user-prompt-submit" || event == "stop" {
+        let store = openStore()
+        let done = DispatchSemaphore(value: 0)
+        let lock = NSLock()
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = event == "stop"
+                ? HookHandlers.stop(payload: payload, store: store, console: console)
+                : HookHandlers.userPromptSubmit(payload: payload, store: store, console: console, toolPrefix: toolPrefix)
+            lock.lock()
+            memoryOutput = result
+            lock.unlock()
+            done.signal()
         }
-        done.signal()
+        if done.wait(timeout: .now() + 1.5) == .timedOut {
+            try? console?.append(domain: "memory", severity: .warning, source: "hook:\(event)",
+                                 message: "memory hook timed out after 1.5s; nothing injected", sessionID: payload["session_id"] as? String)
+        }
     }
-    if done.wait(timeout: .now() + 1.5) == .timedOut {
-        try? console?.append(domain: "memory", severity: .warning, source: "hook:\(event)",
-                             message: "hook timed out after 1.5s; nothing injected", sessionID: payload["session_id"] as? String)
-        exit(0)
+    var agentdOutput = ""
+    if let agentID = environment["CCH_AGENT_ID"].flatMap(Int.init),
+       case .success(let result) = AgentdConnection().call("hook", ["event": event, "payload": payload, "agentID": agentID], timeout: 3),
+       let text = (result as? [String: Any])?["stdout"] as? String {
+        agentdOutput = text
     }
+    let output = agentdOutput.isEmpty ? memoryOutput : agentdOutput
     if !output.isEmpty { print(output) }
     exit(0)
 
@@ -113,6 +125,27 @@ case "log":
         try console.append(domain: domain, severity: severity, source: source, message: words.joined(separator: " "), dataJSON: data)
     } catch {
         fail("\(error)")
+    }
+
+case "agentd":
+    // Dev/troubleshooting: cch-mcp agentd register | unregister | status | call METHOD [JSON]
+    let service = SMAppServiceBridge()
+    switch arguments.dropFirst().first {
+    case "register": print(service.register())
+    case "unregister": print(service.unregister())
+    case "status": print(service.status())
+    case "call":
+        let method = arguments.dropFirst(2).first ?? "ping"
+        let params = arguments.dropFirst(3).first.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] } ?? [:]
+        switch AgentdConnection().call(method, params, timeout: 120) {
+        case .success(let result):
+            let data = (try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys, .fragmentsAllowed])) ?? Data()
+            print(String(data: data, encoding: .utf8) ?? "\(result)")
+        case .failure(let error):
+            fail(error.message)
+        }
+    default:
+        fail("usage: cch-mcp agentd register|unregister|status|call METHOD [JSON]")
     }
 
 case "sweep-prompt":

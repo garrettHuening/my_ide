@@ -12,14 +12,18 @@ APP="build/ClaudeCodeHub.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp Support/Info.plist "$APP/Contents/Info.plist"
 # Replace binaries with new files (not in place) so running Hub/claude/cch-mcp processes keep their old image.
-for exe in ClaudeCodeHub cch-mcp; do
+for exe in ClaudeCodeHub cch-mcp cch-agentd cch-agent-host; do
   rm -f "$APP/Contents/MacOS/$exe"
   cp "$BIN/$exe" "$APP/Contents/MacOS/$exe"
 done
+mkdir -p "$APP/Contents/Library/LaunchAgents"
+cp Support/dev.cch.agentd.plist "$APP/Contents/Library/LaunchAgents/dev.cch.agentd.plist"
 rm -rf "$APP/Contents/Resources/plugins"
 cp -R Resources/plugins "$APP/Contents/Resources/plugins"
 
 codesign --force --sign - --identifier dev.cch.mcp "$APP/Contents/MacOS/cch-mcp"
+codesign --force --sign - --identifier dev.cch.agentd "$APP/Contents/MacOS/cch-agentd"
+codesign --force --sign - --identifier dev.cch.agent-host "$APP/Contents/MacOS/cch-agent-host"
 codesign --force --sign - "$APP"
 xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
 echo "Built $APP ($CONFIG)"

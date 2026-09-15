@@ -1,4 +1,5 @@
 import CCHMemory
+import CCHSubagents
 import Foundation
 
 /// Newline-delimited JSON-RPC 2.0 over stdio, the MCP stdio transport.
@@ -44,10 +45,19 @@ final class StdioServer {
         case "ping":
             reply(id, result: [:])
         case "tools/list":
-            reply(id, result: ["tools": MemoryTools.definitions(for: toolset)])
+            reply(id, result: ["tools": MemoryTools.definitions(for: toolset) + subagentDefinitions])
         case "tools/call":
             let name = params["name"] as? String ?? ""
             let args = params["arguments"] as? [String: Any] ?? [:]
+            if let role = subagentRole, SubagentTools.names(for: role).contains(name) {
+                switch AgentdConnection().call("tool", ["name": name, "args": args, "caller": caller(role)], timeout: 60) {
+                case .success(let result):
+                    reply(id, result: ["content": [["type": "text", "text": (result as? [String: Any])?["text"] as? String ?? "Done."]]])
+                case .failure(let error):
+                    reply(id, result: ["content": [["type": "text", "text": "Error: \(error.message)"]], "isError": true])
+                }
+                return
+            }
             do {
                 let project = try store.project(for: resolved)
                 let context = ToolContext(store: store, console: console, project: project, branch: resolved.branch,
@@ -62,6 +72,29 @@ final class StdioServer {
                 send(["jsonrpc": "2.0", "id": id as Any, "error": ["code": -32601, "message": "Method not found: \(method)"]])
             }
         }
+    }
+
+    /// Subagent orchestration tools exist only in Hub-launched sessions and subagents.
+    private var subagentRole: SubagentTools.Role? {
+        guard toolset == .main else { return nil }
+        let env = ProcessInfo.processInfo.environment
+        switch env["CCH_ROLE"] {
+        case "main" where env["CCH_SESSION_ID"] != nil: return .main
+        case "subagent" where env["CCH_AGENT_ID"] != nil: return .subagent
+        default: return nil
+        }
+    }
+
+    private var subagentDefinitions: [[String: Any]] {
+        subagentRole.map { SubagentTools.definitions(for: $0) } ?? []
+    }
+
+    private func caller(_ role: SubagentTools.Role) -> [String: Any] {
+        let env = ProcessInfo.processInfo.environment
+        var caller: [String: Any] = ["role": role.rawValue, "sessionDir": directory]
+        if let session = env["CCH_SESSION_ID"].flatMap(Int.init) { caller["sessionID"] = session }
+        if let agent = env["CCH_AGENT_ID"].flatMap(Int.init) { caller["agentID"] = agent }
+        return caller
     }
 
     private func reply(_ id: Any?, result: [String: Any]) {

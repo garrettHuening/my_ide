@@ -29,14 +29,25 @@ let package = Package(
         ),
         .executableTarget(
             name: "cch-mcp",
-            dependencies: ["CCHMemory"],
+            dependencies: ["CCHMemory", "CCHSubagents"],
             path: "Sources/cch-mcp"
+        ),
+        .executableTarget(
+            name: "cch-agentd",
+            dependencies: ["CCHMemory", "CCHSubagents"],
+            path: "Sources/cch-agentd"
+        ),
+        .executableTarget(
+            name: "cch-agent-host",
+            dependencies: ["CCHSubagents", "CForkpty"],
+            path: "Sources/cch-agent-host"
         ),
         .executableTarget(
             name: "ClaudeCodeHub",
             dependencies: [
                 "CForkpty",
                 "CCHMemory",
+                "CCHSubagents",
                 .product(name: "SwiftTerm", package: "SwiftTerm")
             ],
             path: "Sources/ClaudeCodeHub",

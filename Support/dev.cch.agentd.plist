@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>dev.cch.agentd</string>
+  <key>BundleProgram</key><string>Contents/MacOS/cch-agentd</string>
+  <key>MachServices</key>
+  <dict>
+    <key>dev.cch.agentd</key><true/>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>AbandonProcessGroup</key><true/>
+  <key>ProcessType</key><string>Interactive</string>
+  <key>StandardOutPath</key><string>/tmp/cch-agentd.log</string>
+  <key>StandardErrorPath</key><string>/tmp/cch-agentd.log</string>
+  <key>AssociatedBundleIdentifiers</key>
+  <array><string>dev.cch.ClaudeCodeHub</string></array>
+</dict>
+</plist>

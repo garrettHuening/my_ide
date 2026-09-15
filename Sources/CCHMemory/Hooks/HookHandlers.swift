@@ -3,7 +3,8 @@ import Foundation
 /// Claude Code hook entry points. Each returns the exact stdout the hook command should print
 /// (empty string = print nothing). They never throw: a memory problem must not block a prompt.
 public enum HookHandlers {
-    public static func userPromptSubmit(payload: [String: Any], store: MemoryStore, console: ConsoleLog?) -> String {
+    public static func userPromptSubmit(payload: [String: Any], store: MemoryStore, console: ConsoleLog?,
+                                        toolPrefix: String = MemoryTools.toolPrefix) -> String {
         let prompt = payload["prompt"] as? String ?? ""
         let sessionID = payload["session_id"] as? String
         let cwd = payload["cwd"] as? String ?? FileManager.default.currentDirectoryPath
@@ -32,12 +33,12 @@ public enum HookHandlers {
             let context: String?
             if items.isEmpty {
                 context = firstPrompt && strictness != .off
-                    ? "<core-memories project=\"\(project.name)\" count=\"0\">\nNo core memories match yet. When you learn something durable about this project, record it with \(MemoryTools.toolPrefix)memory_write; track bugs with \(MemoryTools.toolPrefix)bug_open.\n</core-memories>"
+                    ? "<core-memories project=\"\(project.name)\" count=\"0\">\nNo core memories match yet. When you learn something durable about this project, record it with \(toolPrefix)memory_write; track bugs with \(toolPrefix)bug_open.\n</core-memories>"
                     : nil
             } else {
                 context = Grounding.contextBlock(items: items, projectName: project.name, strictness: strictness,
                                                  featureVersions: try MemoryTools.featureVersions(for: items, store: store),
-                                                 toolPrefix: MemoryTools.toolPrefix)
+                                                 toolPrefix: toolPrefix)
             }
             guard let context else { return "" }
             return json(["hookSpecificOutput": ["hookEventName": "UserPromptSubmit", "additionalContext": context]])
