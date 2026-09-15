@@ -21,6 +21,7 @@ final class AppState: ObservableObject {
     @Published var showNewSessionModal: Bool = false
     @Published var showSettings: Bool = false
     @Published var rightPanelVisible: Bool = true
+    @Published var consoleVisible: Bool = false
 
     init(db: Database, sessions: SessionStore, prefs: PrefsStore, importer: SessionImporter, folders: FolderStore) {
         self.db = db

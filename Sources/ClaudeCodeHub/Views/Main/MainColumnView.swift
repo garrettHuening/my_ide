@@ -2,12 +2,17 @@ import SwiftUI
 
 struct MainColumnView: View {
     @EnvironmentObject var sessions: SessionStore
+    @EnvironmentObject var app: AppState
 
     var body: some View {
         VStack(spacing: 0) {
             topbar
             Divider().background(Theme.border)
             terminalArea
+            if app.consoleVisible {
+                Divider().background(Theme.border)
+                ConsoleDrawer()
+            }
         }
         .background(Theme.bg1)
     }

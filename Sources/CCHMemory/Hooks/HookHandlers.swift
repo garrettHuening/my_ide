@@ -11,6 +11,15 @@ public enum HookHandlers {
             let resolved = ProjectKey.resolve(directory: cwd)
             let project = try store.project(for: resolved)
             let firstPrompt = try sessionID.map { try !store.hasRetrievals(sessionID: $0) } ?? false
+            if let sessionID, !firstPrompt, CorrectionDetector.looksLikeCorrection(prompt),
+               let previous = try store.lastRetrieval(sessionID: sessionID),
+               !(previous.memoryIDs.isEmpty && previous.bugIDs.isEmpty) {
+                let ids = previous.memoryIDs.map { "M\($0)" } + previous.bugIDs.map { "bug#\($0)" }
+                try? console?.append(domain: "memory.nearmiss", severity: .info, source: "hook:UserPromptSubmit",
+                                     message: "Possible near-miss: user corrected an answer grounded in \(ids.joined(separator: ", "))",
+                                     projectID: project.id, sessionID: sessionID,
+                                     dataJSON: json(["prompt": String(prompt.prefix(300)), "memories": ids]))
+            }
             let items = try Retriever(store: store)
                 .retrieve(prompt: prompt, projectIDs: [project.id], includeSessionMemoryFor: firstPrompt ? project.id : nil)
             let count = try store.activeMemoryCount(projectID: project.id)

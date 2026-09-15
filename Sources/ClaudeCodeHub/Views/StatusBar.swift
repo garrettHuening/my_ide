@@ -4,6 +4,7 @@ import SwiftUI
 /// .sbar pattern. Shows context, session state, and a few quick indicators.
 struct StatusBar: View {
     @EnvironmentObject var sessions: SessionStore
+    @EnvironmentObject var app: AppState
     @ObservedObject private var sweeps = SweepRunner.shared
 
     var body: some View {
@@ -16,6 +17,19 @@ struct StatusBar: View {
                 indicator(color: Theme.yellow, label: "indexing \(sweeps.running.values.sorted().joined(separator: ", "))…")
             }
             Spacer()
+            Button {
+                app.consoleVisible.toggle()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "rectangle.bottomthird.inset.filled")
+                        .font(.system(size: 9))
+                    Text("console")
+                        .font(.system(size: 9))
+                }
+                .foregroundStyle(app.consoleVisible ? Theme.text1 : Theme.textMuted)
+            }
+            .buttonStyle(.plain)
+            .help("Show or hide the debug console (⇧⌘Y)")
             indicator(color: Theme.borderActive, label: workingDirLabel)
             indicator(color: Theme.borderActive, label: "v0.1")
         }

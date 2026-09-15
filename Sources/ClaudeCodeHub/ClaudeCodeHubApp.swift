@@ -62,5 +62,13 @@ struct ClaudeCodeHubApp: App {
         }
         .windowToolbarStyle(.unifiedCompact)
         .defaultSize(width: 1400, height: 880)
+        .commands {
+            CommandGroup(after: .sidebar) {
+                Button(appState.consoleVisible ? "Hide Console" : "Show Console") {
+                    appState.consoleVisible.toggle()
+                }
+                .keyboardShortcut("y", modifiers: [.command, .shift])
+            }
+        }
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import CCHMemory
 
 private let logURL: URL = {
     let logs = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
@@ -15,7 +16,10 @@ private let timeFormatter: DateFormatter = {
     return f
 }()
 
-func appLog(_ message: String) {
+/// Opened lazily on the log queue; nil if the console database can't be opened.
+private var consoleLog: ConsoleLog? = try? ConsoleLog()
+
+func appLog(_ message: String, severity: LogSeverity = .debug) {
     let line = "\(timeFormatter.string(from: Date())) \(message)\n"
     fputs(line, stderr)
     logQueue.async {
@@ -28,5 +32,7 @@ func appLog(_ message: String) {
                 try? data.write(to: logURL)
             }
         }
+        // The same line also goes to the shared debug console under the `hub` domain.
+        try? consoleLog?.append(domain: "hub", severity: severity, source: "hub", message: message)
     }
 }
