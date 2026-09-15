@@ -88,7 +88,12 @@ case "hook":
        let text = (result as? [String: Any])?["stdout"] as? String {
         agentdOutput = text
     }
-    let output = agentdOutput.isEmpty ? memoryOutput : agentdOutput
+    // PostToolUse(Bash): nudge Claude toward run_outside_sandbox when a command hit a sandbox denial.
+    var shellOutput = ""
+    if event == "post-tool-use" {
+        shellOutput = ShellTools.postToolUseHook(payload: payload, toolPrefix: toolPrefix, console: console)
+    }
+    let output = [agentdOutput, memoryOutput, shellOutput].first { !$0.isEmpty } ?? ""
     if !output.isEmpty { print(output) }
     exit(0)
 

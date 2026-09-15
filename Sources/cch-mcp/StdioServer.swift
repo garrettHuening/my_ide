@@ -45,10 +45,23 @@ final class StdioServer {
         case "ping":
             reply(id, result: [:])
         case "tools/list":
-            reply(id, result: ["tools": MemoryTools.definitions(for: toolset) + subagentDefinitions])
+            reply(id, result: ["tools": MemoryTools.definitions(for: toolset) + subagentDefinitions + shellDefinitions])
         case "tools/call":
             let name = params["name"] as? String ?? ""
             let args = params["arguments"] as? [String: Any] ?? [:]
+            if toolset == .main, name == ShellTools.toolName {
+                let command = args["command"] as? String ?? ""
+                guard !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    reply(id, result: ["content": [["type": "text", "text": "Error: command is required"]], "isError": true])
+                    return
+                }
+                let timeout = (args["timeout_seconds"] as? Int).map(TimeInterval.init) ?? ShellTools.defaultTimeout
+                let result = ShellTools.run(command: command, reason: args["reason"] as? String ?? "(no reason given)",
+                                            cwd: args["cwd"] as? String ?? directory, timeout: timeout,
+                                            console: console, source: source)
+                reply(id, result: ["content": [["type": "text", "text": result.text]]])
+                return
+            }
             if let role = subagentRole, SubagentTools.names(for: role).contains(name) {
                 switch AgentdConnection().call("tool", ["name": name, "args": args, "caller": caller(role)], timeout: 60) {
                 case .success(let result):
@@ -87,6 +100,11 @@ final class StdioServer {
 
     private var subagentDefinitions: [[String: Any]] {
         subagentRole.map { SubagentTools.definitions(for: $0) } ?? []
+    }
+
+    /// The sandbox escape hatch is offered to interactive sessions and subagents, not background jobs.
+    private var shellDefinitions: [[String: Any]] {
+        toolset == .main ? [ShellTools.definition] : []
     }
 
     private func caller(_ role: SubagentTools.Role) -> [String: Any] {

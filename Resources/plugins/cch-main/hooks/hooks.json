@@ -7,6 +7,14 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/../../../MacOS/cch-mcp\" hook post-tool-use", "timeout": 10 }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
