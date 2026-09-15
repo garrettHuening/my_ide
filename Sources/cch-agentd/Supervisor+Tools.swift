@@ -55,7 +55,7 @@ extension Supervisor {
         case ("main", "set_merge_order"):
             let name = (args["group"] as? String ?? "").trimmingCharacters(in: .whitespaces)
             guard !name.isEmpty else { throw RPCError(message: "group is required") }
-            let ids = (args["ids"] as? [Int] ?? []).map(Int64.init)
+            let ids = (args["ids"] as? [Any] ?? []).compactMap { ($0 as? Int).map(Int64.init) ?? ($0 as? Double).map { Int64($0) } }
             guard !ids.isEmpty else { throw RPCError(message: "ids must not be empty") }
             for raw in ids {
                 let s = try ownSubagent(raw, sessionID: sessionID)
@@ -128,8 +128,16 @@ extension Supervisor {
     }
 
     private func ownSubagent(_ raw: Any?, sessionID: Int64) throws -> Subagent {
-        guard let value = raw as? Int else { throw RPCError(message: "id must be a subagent number") }
-        let s = try require(Int64(value))
+        let value: Int64
+        switch raw {
+        case let i as Int: value = Int64(i)
+        case let i as Int64: value = i
+        case let d as Double: value = Int64(d)
+        case let s as String where Int64(s.trimmingCharacters(in: CharacterSet(charactersIn: "# "))) != nil:
+            value = Int64(s.trimmingCharacters(in: CharacterSet(charactersIn: "# ")))!
+        default: throw RPCError(message: "id must be a subagent number")
+        }
+        let s = try require(value)
         guard s.sessionID == sessionID else { throw RPCError(message: "subagent #\(value) belongs to another session") }
         return s
     }

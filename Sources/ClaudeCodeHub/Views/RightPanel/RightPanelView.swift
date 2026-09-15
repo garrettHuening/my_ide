@@ -1,30 +1,32 @@
 import SwiftUI
+import CCHSubagents
 
-/// Right panel: tabs (Tasks | Plans | Panes) sit at the top of the pane list.
-/// Filter chips show only under Panes.
+/// Right panel: filter chips on top (All · Agents · Task · Bug · Feature · Helper), then the tab strip
+/// Subagents | Plans | Scripts, plus MCPs | Agents | Skills while the Agents chip is on.
 struct RightPanelView: View {
     @EnvironmentObject var sessions: SessionStore
-    @State private var activeTab: Tab = .panes
-    @State private var activeFilters: Set<PaneFilter> = [.all]
+    @ObservedObject private var subagents = SubagentsClient.shared
+    @State private var activeTab: Tab = .subagents
+    @State private var agentsMode = false
+    @State private var categoryFilter: Set<SubagentCategory> = []
     @StateObject private var scripts = ScriptsModel()
 
     enum Tab: String, CaseIterable, Hashable {
-        case tasks = "Tasks"
+        case subagents = "Subagents"
         case plans = "Plans"
         case scripts = "Scripts"
-        case panes = "Panes"
+        case mcps = "MCPs"
+        case agents = "Agents"
+        case skills = "Skills"
     }
 
-    enum PaneFilter: String, CaseIterable, Hashable {
-        case all = "All"
-        case analyze = "Analyze"
-        case investigate = "Investigate"
-        case bug = "Bug"
+    private var visibleTabs: [Tab] {
+        [.subagents, .plans, .scripts] + (agentsMode ? [.mcps, .agents, .skills] : [])
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            paneFilters
+            chips
             Divider().background(Theme.border)
             tabStrip
             Divider().background(Theme.border)
@@ -35,17 +37,38 @@ struct RightPanelView: View {
         .background(Theme.bg2)
     }
 
+    private var chips: some View {
+        HStack(spacing: 5) {
+            FilterChip(title: "All", isOn: categoryFilter.isEmpty) { categoryFilter = [] }
+            FilterChip(title: "Agents", isOn: agentsMode) {
+                agentsMode.toggle()
+                if !agentsMode, [.mcps, .agents, .skills].contains(activeTab) { activeTab = .subagents }
+            }
+            ForEach(SubagentCategory.allCases, id: \.self) { category in
+                FilterChip(title: category.displayName, isOn: categoryFilter.contains(category)) {
+                    if categoryFilter.contains(category) { categoryFilter.remove(category) } else { categoryFilter.insert(category) }
+                    activeTab = .subagents
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 10)
+        .background(Theme.bg2)
+    }
+
     private var tabStrip: some View {
         HStack(spacing: 0) {
-            ForEach(Tab.allCases, id: \.self) { tab in
+            ForEach(visibleTabs, id: \.self) { tab in
                 Button {
                     activeTab = tab
                 } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 5) {
                         Text(tab.rawValue)
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(activeTab == tab ? Theme.text1 : Theme.textMuted)
-                        CountChip(value: count(for: tab))
+                            .lineLimit(1)
+                        if let count = count(for: tab) { CountChip(value: count) }
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
@@ -64,110 +87,59 @@ struct RightPanelView: View {
     @ViewBuilder
     private var tabContent: some View {
         switch activeTab {
-        case .tasks: tasksTab
+        case .subagents: SubagentsTab(categoryFilter: categoryFilter)
         case .plans: plansTab
         case .scripts: ScriptsTab(model: scripts)
-        case .panes: panesTab
+        case .mcps:
+            PlaceholderList(title: "MCPs", subtitle: "Discovered MCP servers will appear here.\nToggle to write `.mcp.json` for the active session.", systemImage: "antenna.radiowaves.left.and.right")
+        case .agents:
+            PlaceholderList(title: "Agents", subtitle: "Markdown agents from `.claude/agents/` will appear here once discovered.", systemImage: "brain")
+        case .skills:
+            PlaceholderList(title: "Skills", subtitle: "Slash commands from `.claude/skills/` will appear here, grouped by source.", systemImage: "wand.and.stars")
         }
-    }
-
-    private var tasksTab: some View {
-        if sessions.activeSession == nil {
-            return AnyView(EmptyState(
-                title: "No active session",
-                subtitle: "Select a session to see its task list.",
-                systemImage: "checklist"
-            ))
-        }
-        return AnyView(
-            VStack(alignment: .leading, spacing: 0) {
-                GroupHeader(title: "Session Tasks", count: 0)
-                EmptyState(
-                    title: "No tasks yet",
-                    subtitle: "Type `todo <description>` or `bug <description>` in the terminal to add one.\nClaude Code Hub mirrors `_tasks.md` at the session root.",
-                    systemImage: "checklist"
-                )
-            }
-        )
     }
 
     private var plansTab: some View {
-        if sessions.activeSession == nil {
-            return AnyView(EmptyState(
-                title: "No active session",
-                subtitle: "Select a session to see its plans.",
-                systemImage: "list.bullet.rectangle"
-            ))
-        }
-        return AnyView(
-            VStack(alignment: .leading, spacing: 0) {
-                GroupHeader(title: "Plans", count: 0)
-                EmptyState(
-                    title: "No plans yet",
-                    subtitle: "Run `/plan create <name>` in the terminal.\nPlans live as markdown files under `.claude/plans/`.",
-                    systemImage: "list.bullet.rectangle"
-                )
-            }
-        )
-    }
-
-    private var panesTab: some View {
         Group {
             if sessions.activeSession == nil {
-                EmptyState(
-                    title: "No active session",
-                    subtitle: "Sub-agent, bug, and investigate panes appear here.",
-                    systemImage: "rectangle.stack"
-                )
+                EmptyState(title: "No active session", subtitle: "Select a session to see its plans.", systemImage: "list.bullet.rectangle")
             } else {
-                EmptyState(
-                    title: "No panes yet",
-                    subtitle: "Type `bug <description>` or `investigate <topic>` to spawn one.\nClaude's `Task` tool also opens panes here.",
-                    systemImage: "rectangle.stack"
-                )
+                VStack(alignment: .leading, spacing: 0) {
+                    GroupHeader(title: "Plans", count: 0)
+                    EmptyState(title: "No plans yet",
+                               subtitle: "Run `/plan create <name>` in the terminal.\nPlans live as markdown files under `.claude/plans/`.",
+                               systemImage: "list.bullet.rectangle")
+                }
             }
         }
     }
 
-    private var paneFilters: some View {
-        HStack(spacing: 6) {
-            ForEach(PaneFilter.allCases, id: \.self) { filter in
-                FilterChip(
-                    title: filter.rawValue,
-                    isOn: activeFilters.contains(filter),
-                    action: { toggle(filter) }
-                )
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Theme.bg2)
-    }
-
-    private func count(for tab: Tab) -> String {
+    private func count(for tab: Tab) -> String? {
         switch tab {
-        case .tasks: return "0/0"
+        case .subagents:
+            guard let id = sessions.activeSessionID else { return "0" }
+            return "\(subagents.snapshots(forSession: id).filter { !$0.hidden && !SubagentsTab.archivedStates.contains($0.subagentState) }.count)"
         case .plans: return "0"
         case .scripts: return "\(scripts.scripts.count)"
-        case .panes: return "0"
+        case .mcps, .agents, .skills: return nil
         }
     }
+}
 
-    private func toggle(_ filter: PaneFilter) {
-        if filter == .all {
-            activeFilters = [.all]
-            return
+private struct PlaceholderList: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    @State private var searchText = ""
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SearchField(text: $searchText, placeholder: "Search \(title.lowercased())…")
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
+                .padding(.bottom, 6)
+            EmptyState(title: title, subtitle: subtitle, systemImage: systemImage)
         }
-        var next = activeFilters
-        next.remove(.all)
-        if next.contains(filter) {
-            next.remove(filter)
-        } else {
-            next.insert(filter)
-        }
-        if next.isEmpty { next = [.all] }
-        activeFilters = next
     }
 }
 
@@ -181,7 +153,7 @@ private struct FilterChip: View {
             Text(title)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(isOn ? Theme.bg1 : Theme.text2)
-                .padding(.horizontal, 9)
+                .padding(.horizontal, 7)
                 .padding(.vertical, 4)
                 .background(isOn ? Theme.accent : Theme.bgS)
                 .overlay(

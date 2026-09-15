@@ -1,4 +1,5 @@
 import SwiftUI
+import CCHSubagents
 
 /// Thin status bar pinned to the bottom of the window — mirrors the wireframe's
 /// .sbar pattern. Shows context, session state, and a few quick indicators.
@@ -6,13 +7,16 @@ struct StatusBar: View {
     @EnvironmentObject var sessions: SessionStore
     @EnvironmentObject var app: AppState
     @ObservedObject private var jobs = MemoryJobs.shared
+    @ObservedObject private var subagents = SubagentsClient.shared
 
     var body: some View {
         HStack(spacing: 14) {
             indicator(color: Theme.green, label: stateLabel)
             indicator(color: Theme.borderActive, label: "ctx 0%")
-            indicator(color: Theme.borderActive, label: "0 panes")
-            indicator(color: Theme.borderActive, label: "0 tasks")
+            indicator(color: subagents.connected ? Theme.borderActive : Theme.red, label: subagentLabel)
+            if needYou > 0 {
+                indicator(color: Theme.red, label: "\(needYou) need you")
+            }
             if !jobs.running.isEmpty {
                 indicator(color: Theme.yellow, label: "\(jobs.running.values.sorted().joined(separator: ", "))…")
             }
@@ -39,6 +43,19 @@ struct StatusBar: View {
         .overlay(alignment: .top) {
             Rectangle().fill(Theme.border).frame(height: 1)
         }
+    }
+
+    private var activeSubagents: [CCHSubagents.SubagentSnapshot] {
+        subagents.snapshots.filter { ![.merged, .stopped, .discarded, .failed].contains($0.subagentState) }
+    }
+
+    private var subagentLabel: String {
+        guard subagents.connected else { return "helper offline" }
+        return "\(activeSubagents.count) subagent\(activeSubagents.count == 1 ? "" : "s")"
+    }
+
+    private var needYou: Int {
+        activeSubagents.filter { $0.subagentState == .needsInput }.count
     }
 
     private var stateLabel: String {

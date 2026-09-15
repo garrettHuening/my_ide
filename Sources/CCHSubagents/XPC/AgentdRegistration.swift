@@ -41,15 +41,19 @@ public struct SMAppServiceBridge {
     public func ensureRunning(ping: () -> Bool) -> String {
         if service.status != .enabled { _ = register() }
         if ping() { return "running" }
-        _ = unregister()
-        // Registering again while launchd still has the old job fails with EX_CONFIG; wait for it to go.
-        for _ in 0..<20 where Self.launchdHasJob() {
-            Thread.sleep(forTimeInterval: 0.5)
-        }
-        _ = register()
-        for _ in 0..<10 {
-            if ping() { return "running (re-registered)" }
-            Thread.sleep(forTimeInterval: 0.5)
+        for attempt in 1...2 {
+            _ = unregister()
+            // Registering again while launchd still tracks the old job fails with EX_CONFIG
+            // (seen after rebuilding the ad-hoc signed bundle); wait for it to go, then a moment more.
+            for _ in 0..<20 where Self.launchdHasJob() {
+                Thread.sleep(forTimeInterval: 0.5)
+            }
+            Thread.sleep(forTimeInterval: Double(attempt) * 1.5)
+            _ = register()
+            for _ in 0..<12 {
+                if ping() { return "running (re-registered)" }
+                Thread.sleep(forTimeInterval: 0.5)
+            }
         }
         if service.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
         return "unreachable; status=\(status())"

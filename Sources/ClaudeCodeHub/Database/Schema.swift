@@ -1,7 +1,7 @@
 import Foundation
 
 enum Schema {
-    static let currentVersion: Int64 = 3
+    static let currentVersion: Int64 = 4
 
     static func migrate(_ db: Database) throws {
         try db.exec("""
@@ -26,6 +26,12 @@ enum Schema {
             try migrateToV3(db)
             try setSchemaVersion(db, 3)
             appLog("[DB] migrated to v3")
+        }
+        if version < 4 {
+            // The Claude conversation a Hub session resumes on relaunch (spec D11).
+            try db.exec("ALTER TABLE sessions ADD COLUMN claude_session_id TEXT;")
+            try setSchemaVersion(db, 4)
+            appLog("[DB] migrated to v4")
         }
     }
 

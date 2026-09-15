@@ -134,6 +134,11 @@ case "agentd":
     case "register": print(service.register())
     case "unregister": print(service.unregister())
     case "status": print(service.status())
+    case "ensure":
+        print(service.ensureRunning {
+            if case .success = AgentdConnection().call("ping", timeout: 3) { return true }
+            return false
+        })
     case "call":
         let method = arguments.dropFirst(2).first ?? "ping"
         let params = arguments.dropFirst(3).first.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any] } ?? [:]
@@ -145,7 +150,7 @@ case "agentd":
             fail(error.message)
         }
     default:
-        fail("usage: cch-mcp agentd register|unregister|status|call METHOD [JSON]")
+        fail("usage: cch-mcp agentd register|unregister|status|ensure|call METHOD [JSON]")
     }
 
 case "sweep-prompt":

@@ -223,6 +223,22 @@ final class SessionStore: ObservableObject {
         }
     }
 
+    /// The Claude conversation this session resumes on relaunch; created on first use.
+    func claudeSessionID(for id: Int64) -> (id: String, isNew: Bool) {
+        var existing: String?
+        try? db.query("SELECT claude_session_id FROM sessions WHERE id = ?", [id]) { row in
+            existing = row.stringOrNil(0)
+        }
+        if let existing, !existing.isEmpty { return (existing, false) }
+        let fresh = UUID().uuidString.lowercased()
+        do {
+            try db.writeStatement("UPDATE sessions SET claude_session_id = ? WHERE id = ?", [fresh, id])
+        } catch {
+            appLog("[SessionStore] claudeSessionID save failed: \(error)")
+        }
+        return (fresh, true)
+    }
+
     func setPendingAction(_ id: Int64, _ pending: Bool) {
         do {
             try db.writeStatement(

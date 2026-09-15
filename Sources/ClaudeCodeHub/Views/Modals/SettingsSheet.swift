@@ -44,6 +44,10 @@ struct SettingsSheet: View {
 
             Divider().background(Theme.border)
 
+            SubagentSettingsSection()
+
+            Divider().background(Theme.border)
+
             HStack(spacing: 10) {
                 Button {
                     apply()
@@ -83,7 +87,7 @@ struct SettingsSheet: View {
             }
         }
         .padding(22)
-        .frame(width: 540, height: 540)
+        .frame(width: 580, height: 760)
         .background(Theme.bg2)
         .onAppear { dirField = prefs.claudeStateDir }
     }

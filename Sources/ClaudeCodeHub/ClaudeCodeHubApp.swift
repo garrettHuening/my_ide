@@ -47,6 +47,7 @@ struct ClaudeCodeHubApp: App {
         appLog("[App] launch")
         _ = importer.scan()
         MemoryJobs.shared.startDreamScheduler()
+        SubagentsClient.shared.start(app: state)
     }
 
     var body: some Scene {

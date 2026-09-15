@@ -46,6 +46,16 @@ final class TerminalRegistry: ObservableObject {
         sessionStore?.setStatus(sessionID, .stopped)
     }
 
+    func isRunning(_ sessionID: Int64) -> Bool {
+        terminals[sessionID] != nil
+    }
+
+    /// Types a whole message into Claude as a bracketed paste, then presses Enter.
+    func sendMessage(_ text: String, to sessionID: Int64) {
+        sendInput("\u{1b}[200~" + text + "\u{1b}[201~", to: sessionID)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { self.sendInput("\r", to: sessionID) }
+    }
+
     func sendInput(_ text: String, to sessionID: Int64) {
         guard let term = terminals[sessionID] else { return }
         let bytes: ArraySlice<UInt8> = ArraySlice(Array(text.utf8))
@@ -79,7 +89,7 @@ final class TerminalRegistry: ObservableObject {
         ClaudeSettings.ensureWritten(at: cwd)
 
         if let claudePath = ClaudeLocator.findExecutable() {
-            let hub = HubPlugin.launchConfiguration(sessionID: session.id, workingDir: cwd)
+            let hub = HubPlugin.launchConfiguration(sessionID: session.id, workingDir: cwd, sessions: sessionStore)
             appLog("[TerminalRegistry] spawn claude=\(claudePath) cwd=\(cwd) sid=\(session.id) plugin=\(hub.args.isEmpty ? "missing" : "cch-main")")
             term.startProcess(
                 executable: claudePath,

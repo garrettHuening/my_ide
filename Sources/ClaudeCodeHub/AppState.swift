@@ -9,15 +9,8 @@ final class AppState: ObservableObject {
     let importer: SessionImporter
     let folders: FolderStore
 
-    enum SidebarTab: String, CaseIterable, Identifiable {
-        case sessions = "Sessions"
-        case mcps = "MCPs"
-        case agents = "Agents"
-        case skills = "Skills"
-        var id: String { rawValue }
-    }
-
-    @Published var sidebarTab: SidebarTab = .sessions
+    /// Subagent shown in the main pane, per session. Missing = the session's main terminal.
+    @Published var selectedSubagent: [Int64: Int64] = [:]
     @Published var showNewSessionModal: Bool = false
     @Published var showSettings: Bool = false
     @Published var rightPanelVisible: Bool = true
