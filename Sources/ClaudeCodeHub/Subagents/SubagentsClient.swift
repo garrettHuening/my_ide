@@ -18,6 +18,8 @@ final class SubagentsClient: NSObject, ObservableObject, PeerXPC {
     private let queue = DispatchQueue(label: "cch.subagents.client")
     private var connection: NSXPCConnection?
     private var reconnectScheduled = false
+    private var connectGeneration = 0
+    private var healthTimer: Timer?
     private var pendingBySession: [Int64: Bool] = [:]
 
     func start(app: AppState) {
@@ -29,6 +31,13 @@ final class SubagentsClient: NSObject, ObservableObject, PeerXPC {
             }
             appLog("[Subagents] helper \(status)")
             self.connect()
+        }
+        DispatchQueue.main.async {
+            // Belt and braces: an unanswered subscribe (helper restarting mid-handshake) never errors.
+            self.healthTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
+                guard let self, !self.connected else { return }
+                self.connectionLost()
+            }
         }
     }
 
@@ -42,7 +51,22 @@ final class SubagentsClient: NSObject, ObservableObject, PeerXPC {
         connection.invalidationHandler = { [weak self] in self?.connectionLost() }
         connection.interruptionHandler = { [weak self] in self?.connectionLost() }
         connection.resume()
+        self.connection?.invalidationHandler = nil
+        self.connection?.interruptionHandler = nil
+        self.connection?.invalidate()
         self.connection = connection
+        connectGeneration += 1
+        let generation = connectGeneration
+        queue.asyncAfter(deadline: .now() + 10) {
+            DispatchQueue.main.async {
+                guard !self.connected else { return }
+                self.queue.async {
+                    guard generation == self.connectGeneration else { return }
+                    appLog("[Subagents] subscribe got no reply; reconnecting", severity: .warning)
+                    self.connectionLost()
+                }
+            }
+        }
         call("app.subscribe") { result in
             switch result {
             case .success(let list):
@@ -63,6 +87,11 @@ final class SubagentsClient: NSObject, ObservableObject, PeerXPC {
             self.reconnectScheduled = true
             self.queue.asyncAfter(deadline: .now() + 3) {
                 self.reconnectScheduled = false
+                // A helper that launchd can't restart (e.g. after a rebuild) needs re-registering.
+                SMAppServiceBridge().ensureRunning {
+                    if case .success = AgentdConnection().call("ping", timeout: 3) { return true }
+                    return false
+                }
                 self.connect()
             }
         }

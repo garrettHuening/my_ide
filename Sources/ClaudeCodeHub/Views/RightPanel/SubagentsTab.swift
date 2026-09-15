@@ -65,6 +65,13 @@ struct SubagentsTab: View {
         ForEach(SubagentCategory.allCases.filter { categoryFilter.isEmpty || categoryFilter.contains($0) }, id: \.self) { category in
             let rows = visible.filter { $0.mergeGroupID == nil && $0.subagentCategory == category }
             SectionHeader(title: category.displayName, trailing: "\(rows.count)")
+            if rows.isEmpty {
+                Text(Self.placeholder(for: category))
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.textMuted)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 4)
+            }
             ForEach(rows) { s in
                 SubagentRow(snapshot: s, grouped: false, groupMembers: [], session: session)
             }
@@ -96,6 +103,15 @@ struct SubagentsTab: View {
             if doneExpanded {
                 ForEach(done) { s in SubagentRow(snapshot: s, grouped: false, groupMembers: [], session: session) }
             }
+        }
+    }
+
+    static func placeholder(for category: SubagentCategory) -> String {
+        switch category {
+        case .task: return "No tasks. Type /task <what to do> for a scoped change."
+        case .bug: return "No bugs. Type /bugfix <the bug> to reproduce, root-cause and fix it."
+        case .feature: return "No features. Type /feature <what to build> to implement it with tests."
+        case .helper: return "No helpers. Type /helper <what to look into> for research or analysis."
         }
     }
 
