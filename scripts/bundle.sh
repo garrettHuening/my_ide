@@ -11,8 +11,11 @@ BIN=".build/$CONFIG"
 APP="build/ClaudeCodeHub.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp Support/Info.plist "$APP/Contents/Info.plist"
-cp "$BIN/ClaudeCodeHub" "$APP/Contents/MacOS/ClaudeCodeHub"
-cp "$BIN/cch-mcp" "$APP/Contents/MacOS/cch-mcp"
+# Replace binaries with new files (not in place) so running Hub/claude/cch-mcp processes keep their old image.
+for exe in ClaudeCodeHub cch-mcp; do
+  rm -f "$APP/Contents/MacOS/$exe"
+  cp "$BIN/$exe" "$APP/Contents/MacOS/$exe"
+done
 rm -rf "$APP/Contents/Resources/plugins"
 cp -R Resources/plugins "$APP/Contents/Resources/plugins"
 

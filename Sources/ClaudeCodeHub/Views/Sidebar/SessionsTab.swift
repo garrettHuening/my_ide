@@ -228,7 +228,12 @@ struct SessionsTab: View {
                     }
                 }
             }
-            Button("Re-sweep Project") { SweepRunner.shared.sweepNow(workingDir: session.workingDir) }
+            Menu("Core Memory") {
+                Button("Re-sweep Project") { MemoryJobs.shared.sweepNow(workingDir: session.workingDir) }
+                Button("Add Documentation URL…") { DocumentationPicker.askForURL(workingDir: session.workingDir) }
+                Button("Add Documentation Files…") { DocumentationPicker.askForFiles(workingDir: session.workingDir) }
+                Button("Dream Now") { MemoryJobs.shared.dreamNow(workingDir: session.workingDir) }
+            }
             Divider()
             Button("Delete", role: .destructive) { sessions.delete(session.id) }
         }

@@ -6,6 +6,7 @@ struct MemorySettingsSection: View {
     @State private var strictness: GroundingStrictness = .balanced
     @State private var backgroundModel: String = MemoryStore.defaultBackgroundModel
     @State private var autoSweep = true
+    @State private var dreaming = true
     @State private var summary: String = ""
     @State private var error: String?
     @State private var loaded = false
@@ -44,6 +45,9 @@ struct MemorySettingsSection: View {
             Toggle("Sweep new projects automatically when a session opens", isOn: $autoSweep)
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.text2)
+            Toggle("Dream every 6 hours (consolidate memories, conservative feature versions)", isOn: $dreaming)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.text2)
 
             Text(error ?? summary)
                 .font(.system(size: 10))
@@ -53,6 +57,7 @@ struct MemorySettingsSection: View {
         .onChange(of: strictness) { _, value in save { try $0.setStrictness(value) } }
         .onChange(of: backgroundModel) { _, value in save { try $0.setPref(MemoryStore.backgroundModelKey, value) } }
         .onChange(of: autoSweep) { _, value in save { try $0.setPref(MemoryStore.autoSweepKey, value ? "1" : "0") } }
+        .onChange(of: dreaming) { _, value in save { try $0.setPref(MemoryStore.dreamingEnabledKey, value ? "1" : "0") } }
     }
 
     private func row<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
@@ -72,6 +77,7 @@ struct MemorySettingsSection: View {
             strictness = try store.strictness()
             backgroundModel = try store.backgroundModel()
             autoSweep = try store.autoSweep()
+            dreaming = try store.dreamingEnabled()
             let projects = try store.projects()
             let total = try projects.reduce(0) { $0 + (try store.activeMemoryCount(projectID: $1.id)) }
             summary = "\(total) memories across \(projects.count) project\(projects.count == 1 ? "" : "s"). Strict needs at least \(Grounding.strictMinimumMemories) in a project."

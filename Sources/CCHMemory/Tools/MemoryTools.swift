@@ -1,5 +1,41 @@
 import Foundation
 
+/// Which tools a `cch-mcp serve` instance exposes. Set per plugin through `CCH_TOOLSET`.
+public enum Toolset: String, Sendable {
+    /// Interactive Hub sessions and subagents.
+    case main
+    /// Repo sweep: read/write memories; every write is `source: code`.
+    case sweep
+    /// Dreaming: consolidate, supersede, bump feature versions, flag conflicts.
+    case dream
+    /// Documentation ingestion: every write is `source: doc`.
+    case docs
+
+    var tools: Set<String> {
+        let read: Set<String> = ["memory_search", "memory_get"]
+        switch self {
+        case .main:
+            return read.union(["memory_write", "memory_update", "memory_link", "memory_flag_conflict", "bug_open", "bug_fix",
+                               "bug_learning", "bug_similar", "bug_link_regression", "log_event"])
+        case .sweep:
+            return read.union(["memory_write", "memory_update", "memory_link"])
+        case .dream:
+            return read.union(["dream_candidates", "memory_update", "memory_supersede", "memory_link", "memory_flag_conflict", "feature_bump_version"])
+        case .docs:
+            return read.union(["memory_write", "memory_link", "memory_flag_conflict"])
+        }
+    }
+
+    /// Source forced onto writes, if any.
+    var forcedSource: MemorySource? {
+        switch self {
+        case .sweep: return .code
+        case .docs: return .doc
+        case .main, .dream: return nil
+        }
+    }
+}
+
 public struct ToolContext {
     public let store: MemoryStore
     public let console: ConsoleLog?
@@ -7,14 +43,17 @@ public struct ToolContext {
     public let branch: String?
     public let sessionID: String?
     public let source: String
+    public let toolset: Toolset
 
-    public init(store: MemoryStore, console: ConsoleLog?, project: Project, branch: String?, sessionID: String?, source: String) {
+    public init(store: MemoryStore, console: ConsoleLog?, project: Project, branch: String?, sessionID: String?, source: String,
+                toolset: Toolset = .main) {
         self.store = store
         self.console = console
         self.project = project
         self.branch = branch
         self.sessionID = sessionID
         self.source = source
+        self.toolset = toolset
     }
 }
 
@@ -26,7 +65,26 @@ public enum MemoryTools {
 
     private static let writableKinds = MemoryKind.allCases.filter { !$0.isFrozen }.map(\.rawValue)
 
-    public static var definitions: [[String: Any]] {
+    /// Tools of the main toolset.
+    public static var definitions: [[String: Any]] { definitions(for: .main) }
+
+    public static func definitions(for toolset: Toolset) -> [[String: Any]] {
+        (allDefinitions + dreamDefinitions).filter { toolset.tools.contains($0["name"] as? String ?? "") }
+    }
+
+    private static var dreamDefinitions: [[String: Any]] {
+        [
+            tool("dream_candidates", "List memories changed since the last dream, with related memories and each feature's last recorded version. Page with offset.",
+                 properties: ["offset": ["type": "integer", "minimum": 0]], required: []),
+            tool("memory_supersede", "Mark a memory as replaced by another (after merging its knowledge into the kept one).",
+                 properties: ["old": ["type": "string"], "kept": ["type": "string"], "reason": ["type": "string"]],
+                 required: ["old", "kept", "reason"]),
+            tool("feature_bump_version", "Record a new version of a feature from its current description. Conservative: only for behavior changes that matter when debugging.",
+                 properties: ["feature": ["type": "string"], "reason": ["type": "string"]], required: ["feature", "reason"])
+        ]
+    }
+
+    private static var allDefinitions: [[String: Any]] {
         [
             tool("memory_search", "Search this project's core memories (features, architecture, APIs, design, scripts, sessions, learnings) and bugs. Use scope 'all' to search every project.",
                  properties: [
@@ -93,7 +151,54 @@ public enum MemoryTools {
     public static func call(_ name: String, arguments args: [String: Any], context ctx: ToolContext) throws -> String {
         let store = ctx.store
         let pid = ctx.project.id
+        guard ctx.toolset.tools.contains(name) else {
+            throw MemoryError.invalid("tool \(name) is not available in the \(ctx.toolset.rawValue) toolset")
+        }
         switch name {
+        case "dream_candidates":
+            let offset = max(int(args, "offset") ?? 0, 0)
+            let since = try store.lastDream(projectID: pid, status: "succeeded").map { $0.finishedAt ?? $0.startedAt } ?? .distantPast
+            let all = try store.dreamCandidates(projectID: pid, since: since)
+            let page = all.dropFirst(offset).prefix(10)
+            guard !page.isEmpty else { return "No more candidates (\(all.count) total)." }
+            var out = "Candidates \(offset + 1)–\(offset + page.count) of \(all.count):\n"
+            for candidate in page {
+                let m = candidate.memory
+                out += "\n=== [M\(m.id)] \(m.kind.rawValue) · \(m.source.rawValue) · \(m.title)\n\(m.body)\n"
+                if let v = candidate.lastVersion {
+                    out += v.description == m.body
+                        ? "Last version v\(v.version): unchanged.\n"
+                        : "Last version v\(v.version) (\(v.reason)) described it as:\n\(v.description)\n"
+                }
+                if !candidate.related.isEmpty {
+                    out += "Related:\n" + candidate.related.map {
+                        "  [M\($0.id)] \($0.kind.rawValue) · \($0.source.rawValue) · \($0.title) — \(Grounding.oneLine($0.body, max: 160))"
+                    }.joined(separator: "\n") + "\n"
+                }
+            }
+            if offset + page.count < all.count { out += "\nMore: dream_candidates(offset: \(offset + page.count))" }
+            return out
+
+        case "memory_supersede":
+            guard let old = parseMemoryID(try string(args, "old")), let kept = parseMemoryID(try string(args, "kept")) else {
+                throw MemoryError.invalid("old and kept must be M<number>")
+            }
+            guard old != kept else { throw MemoryError.invalid("a memory cannot supersede itself") }
+            guard let keptMemory = try store.memory(id: kept), keptMemory.projectID == pid, keptMemory.supersededBy == nil else {
+                throw MemoryError.invalid("M\(kept) must be an active memory in this project")
+            }
+            try store.supersede(old, by: kept)
+            try? ctx.console?.append(domain: "dreaming", severity: .info, source: ctx.source,
+                                     message: "M\(old) superseded by M\(kept): \(try string(args, "reason"))", projectID: pid)
+            return "M\(old) is now superseded by M\(kept)."
+
+        case "feature_bump_version":
+            guard let feature = parseMemoryID(try string(args, "feature")) else { throw MemoryError.invalid("feature must be M<number>") }
+            let version = try store.bumpFeatureVersion(featureID: feature, reason: try string(args, "reason"))
+            try? ctx.console?.append(domain: "dreaming", severity: .info, source: ctx.source,
+                                     message: "M\(feature) bumped to v\(version.version): \(version.reason)", projectID: pid)
+            return "M\(feature) is now v\(version.version)."
+
         case "memory_search":
             let query = try string(args, "query")
             let limit = min(max(int(args, "limit") ?? 10, 1), 30)
@@ -126,7 +231,7 @@ public enum MemoryTools {
             guard let kind = MemoryKind(rawValue: try string(args, "kind")), !kind.isFrozen else {
                 throw MemoryError.invalid("kind must be one of: \(writableKinds.joined(separator: ", "))")
             }
-            let source = (args["source"] as? String).flatMap(MemorySource.init(rawValue:)) ?? .session
+            let source = ctx.toolset.forcedSource ?? (args["source"] as? String).flatMap(MemorySource.init(rawValue:)) ?? .session
             var links: [(to: Int64, relation: EdgeRelation)] = []
             for raw in args["links"] as? [[String: Any]] ?? [] {
                 guard let to = (raw["to"] as? String).flatMap(parseMemoryID),

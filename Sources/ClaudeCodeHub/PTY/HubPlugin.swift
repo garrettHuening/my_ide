@@ -13,6 +13,8 @@ enum HubPlugin {
 
     /// Memory tools only, no hooks: used by headless repo sweeps.
     static var sweepPluginDirectory: String? { pluginDirectory("cch-sweep") }
+    static var dreamPluginDirectory: String? { pluginDirectory("cch-dream") }
+    static var docsPluginDirectory: String? { pluginDirectory("cch-docs") }
 
     private static func pluginDirectory(_ name: String) -> String? {
         let path = Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/plugins/\(name)").path

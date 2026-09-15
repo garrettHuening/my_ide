@@ -3,7 +3,7 @@ import Foundation
 /// memory.db schema. Append-only and frozen rules are enforced here with triggers, so no
 /// caller (tool, dreaming job, or a bug in our own code) can rewrite bug history.
 enum MemorySchema {
-    static let currentVersion = 2
+    static let currentVersion = 3
 
     static func migrate(_ db: SQLiteConnection) throws {
         try db.exec("CREATE TABLE IF NOT EXISTS schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);")
@@ -20,7 +20,43 @@ enum MemorySchema {
                 try db.run("INSERT OR REPLACE INTO schema_meta(key, value) VALUES('version', '2')")
             }
         }
+        if version < 3 {
+            try db.transaction {
+                try db.exec(v3)
+                try db.run("INSERT OR REPLACE INTO schema_meta(key, value) VALUES('version', '3')")
+            }
+        }
     }
+
+    private static let v3 = """
+    CREATE TABLE dreams (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id  INTEGER NOT NULL REFERENCES projects(id),
+        status      TEXT NOT NULL,
+        since       REAL NOT NULL,
+        candidates  INTEGER NOT NULL,
+        model       TEXT,
+        cost_usd    REAL,
+        summary     TEXT,
+        error       TEXT,
+        started_at  REAL NOT NULL,
+        finished_at REAL
+    );
+    CREATE INDEX idx_dreams_project ON dreams(project_id, started_at);
+
+    CREATE TABLE ingestions (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id  INTEGER NOT NULL REFERENCES projects(id),
+        source      TEXT NOT NULL,
+        status      TEXT NOT NULL,
+        memories_before INTEGER NOT NULL,
+        memories_after  INTEGER,
+        cost_usd    REAL,
+        error       TEXT,
+        started_at  REAL NOT NULL,
+        finished_at REAL
+    );
+    """
 
     private static let v2 = """
     CREATE TABLE sweeps (

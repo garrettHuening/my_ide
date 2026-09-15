@@ -88,7 +88,7 @@ final class TerminalRegistry: ObservableObject {
                 execName: "claude",
                 currentDirectory: cwd
             )
-            SweepRunner.shared.sweepIfNeeded(workingDir: cwd)
+            MemoryJobs.shared.sweepIfNeeded(workingDir: cwd)
         } else {
             // Fallback: spawn a shell so the user at least gets a terminal and
             // can see what's wrong.

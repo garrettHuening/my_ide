@@ -46,7 +46,7 @@ final class ScriptsModel: ObservableObject {
 struct ScriptsTab: View {
     @EnvironmentObject var sessions: SessionStore
     @ObservedObject var model: ScriptsModel
-    @ObservedObject private var sweeps = SweepRunner.shared
+    @ObservedObject private var jobs = MemoryJobs.shared
 
     var body: some View {
         Group {
@@ -79,12 +79,12 @@ struct ScriptsTab: View {
         }
         .onAppear { model.load(workingDir: sessions.activeSession?.workingDir) }
         .onChange(of: sessions.activeSessionID) { _, _ in model.load(workingDir: sessions.activeSession?.workingDir) }
-        .onChange(of: sweeps.completedCount) { _, _ in model.load(workingDir: sessions.activeSession?.workingDir, force: true) }
+        .onChange(of: jobs.completedCount) { _, _ in model.load(workingDir: sessions.activeSession?.workingDir, force: true) }
     }
 
     private var isSweeping: Bool {
-        guard let key = model.projectKey else { return !sweeps.running.isEmpty }
-        return sweeps.running[key] != nil
+        guard let key = model.projectKey else { return false }
+        return jobs.isRunning(.sweep, projectKey: key)
     }
 
     private func header(_ session: Session) -> some View {

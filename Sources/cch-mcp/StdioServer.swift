@@ -7,13 +7,15 @@ final class StdioServer {
     private let console: ConsoleLog?
     private let directory: String
     private let source: String
+    private let toolset: Toolset
     private lazy var resolved = ProjectKey.resolve(directory: directory)
 
-    init(store: MemoryStore, console: ConsoleLog?, directory: String, source: String) {
+    init(store: MemoryStore, console: ConsoleLog?, directory: String, source: String, toolset: Toolset) {
         self.store = store
         self.console = console
         self.directory = directory
         self.source = source
+        self.toolset = toolset
     }
 
     func run() {
@@ -42,14 +44,14 @@ final class StdioServer {
         case "ping":
             reply(id, result: [:])
         case "tools/list":
-            reply(id, result: ["tools": MemoryTools.definitions])
+            reply(id, result: ["tools": MemoryTools.definitions(for: toolset)])
         case "tools/call":
             let name = params["name"] as? String ?? ""
             let args = params["arguments"] as? [String: Any] ?? [:]
             do {
                 let project = try store.project(for: resolved)
                 let context = ToolContext(store: store, console: console, project: project, branch: resolved.branch,
-                                          sessionID: nil, source: source)
+                                          sessionID: nil, source: source, toolset: toolset)
                 let text = try MemoryTools.call(name, arguments: args, context: context)
                 reply(id, result: ["content": [["type": "text", "text": text]]])
             } catch {

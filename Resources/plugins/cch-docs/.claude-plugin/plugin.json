@@ -1,0 +1,5 @@
+{
+  "name": "cch-docs",
+  "version": "0.1.0",
+  "description": "Claude Code Hub documentation ingestion: memory tools, no hooks."
+}

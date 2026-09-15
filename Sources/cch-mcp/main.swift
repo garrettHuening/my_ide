@@ -34,7 +34,8 @@ switch arguments.first {
 case "serve":
     let directory = environment["CCH_SESSION_DIR"] ?? FileManager.default.currentDirectoryPath
     let role = environment["CCH_ROLE"] ?? "external"
-    StdioServer(store: openStore(), console: console, directory: directory, source: "claude:\(role)").run()
+    let toolset = environment["CCH_TOOLSET"].flatMap(Toolset.init(rawValue:)) ?? .main
+    StdioServer(store: openStore(), console: console, directory: directory, source: "claude:\(role)", toolset: toolset).run()
 
 case "hook" where arguments.dropFirst().first == "session-snapshot":
     // PreCompact / SessionEnd: hand off to a detached summarizer and return at once.
@@ -117,6 +118,10 @@ case "log":
 case "sweep-prompt":
     // Debug: print the repo-sweep prompt the Hub sends (full sweep).
     print(SweepPrompt.text(mode: .full, changedFiles: []))
+
+case "dream-prompt":
+    // Debug: print the dreaming prompt. cch-mcp dream-prompt <project name> <candidate count>
+    print(Dreaming.prompt(projectName: arguments.dropFirst().first ?? "project", candidateCount: Int(arguments.dropFirst(2).first ?? "") ?? 0))
 
 default:
     fail("usage: cch-mcp serve | hook user-prompt-submit|stop | log --domain D --severity S message | sweep-prompt")

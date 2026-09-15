@@ -46,6 +46,7 @@ struct ClaudeCodeHubApp: App {
         sessions.markAllStopped()
         appLog("[App] launch")
         _ = importer.scan()
+        MemoryJobs.shared.startDreamScheduler()
     }
 
     var body: some Scene {

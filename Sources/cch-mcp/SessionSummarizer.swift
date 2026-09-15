@@ -48,26 +48,12 @@ struct SessionSummarizer {
     }
 
     private func summarize(claude: String, model: String, cwd: String, prompt: String) throws -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: claude)
-        process.arguments = ["-p", "--model", model, "--output-format", "json", "--no-session-persistence",
-                             "--tools", "", "--strict-mcp-config"]
-        process.currentDirectoryURL = URL(fileURLWithPath: cwd)
-        let stdin = Pipe()
-        let stdout = Pipe()
-        process.standardInput = stdin
-        process.standardOutput = stdout
-        process.standardError = FileHandle.nullDevice
-        try process.run()
-        stdin.fileHandleForWriting.write(Data(prompt.utf8))
-        try stdin.fileHandleForWriting.close()
-        let data = stdout.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-        guard process.terminationStatus == 0, json?["is_error"] as? Bool == false, let result = json?["result"] as? String else {
-            throw MemoryError.invalid("summarizer failed (exit \(process.terminationStatus)): \(String(data: data, encoding: .utf8)?.prefix(300) ?? "")")
-        }
-        return result
+        let result = HeadlessClaude.run(claude: claude,
+                                        arguments: ["-p", "--model", model, "--output-format", "json", "--no-session-persistence",
+                                                    "--tools", "", "--strict-mcp-config"],
+                                        directory: cwd, stdin: prompt)
+        guard result.succeeded else { throw MemoryError.invalid("summarizer failed: \(result.error ?? "unknown")") }
+        return result.text
     }
 
     private func log(_ severity: LogSeverity, _ message: String, project: Int64?, session: String) {

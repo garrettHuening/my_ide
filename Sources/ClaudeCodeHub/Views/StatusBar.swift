@@ -5,7 +5,7 @@ import SwiftUI
 struct StatusBar: View {
     @EnvironmentObject var sessions: SessionStore
     @EnvironmentObject var app: AppState
-    @ObservedObject private var sweeps = SweepRunner.shared
+    @ObservedObject private var jobs = MemoryJobs.shared
 
     var body: some View {
         HStack(spacing: 14) {
@@ -13,8 +13,8 @@ struct StatusBar: View {
             indicator(color: Theme.borderActive, label: "ctx 0%")
             indicator(color: Theme.borderActive, label: "0 panes")
             indicator(color: Theme.borderActive, label: "0 tasks")
-            if !sweeps.running.isEmpty {
-                indicator(color: Theme.yellow, label: "indexing \(sweeps.running.values.sorted().joined(separator: ", "))…")
+            if !jobs.running.isEmpty {
+                indicator(color: Theme.yellow, label: "\(jobs.running.values.sorted().joined(separator: ", "))…")
             }
             Spacer()
             Button {
