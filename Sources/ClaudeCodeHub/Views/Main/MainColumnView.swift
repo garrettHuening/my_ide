@@ -98,9 +98,13 @@ struct MainColumnView: View {
                     }
                 }
             } else {
-                TerminalHost(session: session)
-                    .id(session.id) // force rebuild on session swap; registry caches the actual NSView
-                    .background(Color.black)
+                VStack(spacing: 0) {
+                    LastSessionCard(workingDir: session.workingDir)
+                        .id("last-\(session.id)")
+                    TerminalHost(session: session)
+                        .id(session.id) // force rebuild on session swap; registry caches the actual NSView
+                        .background(Color.black)
+                }
             }
         } else {
             ZStack {
