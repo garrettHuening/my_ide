@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "cch": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/../../../MacOS/cch-mcp",
+      "args": ["serve"]
+    }
+  }
+}

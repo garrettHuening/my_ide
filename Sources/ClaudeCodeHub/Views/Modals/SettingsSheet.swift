@@ -40,6 +40,10 @@ struct SettingsSheet: View {
 
             Divider().background(Theme.border)
 
+            MemorySettingsSection()
+
+            Divider().background(Theme.border)
+
             HStack(spacing: 10) {
                 Button {
                     apply()
@@ -79,7 +83,7 @@ struct SettingsSheet: View {
             }
         }
         .padding(22)
-        .frame(width: 540, height: 360)
+        .frame(width: 540, height: 470)
         .background(Theme.bg2)
         .onAppear { dirField = prefs.claudeStateDir }
     }

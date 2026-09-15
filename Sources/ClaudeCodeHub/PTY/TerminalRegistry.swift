@@ -78,11 +78,12 @@ final class TerminalRegistry: ObservableObject {
         ClaudeSettings.ensureWritten(at: cwd)
 
         if let claudePath = ClaudeLocator.findExecutable() {
-            appLog("[TerminalRegistry] spawn claude=\(claudePath) cwd=\(cwd) sid=\(session.id)")
+            let hub = HubPlugin.launchConfiguration(sessionID: session.id, workingDir: cwd)
+            appLog("[TerminalRegistry] spawn claude=\(claudePath) cwd=\(cwd) sid=\(session.id) plugin=\(hub.args.isEmpty ? "missing" : "cch-main")")
             term.startProcess(
                 executable: claudePath,
-                args: [],
-                environment: ClaudeLocator.env(),
+                args: hub.args,
+                environment: ClaudeLocator.env() + hub.environment,
                 execName: "claude",
                 currentDirectory: cwd
             )

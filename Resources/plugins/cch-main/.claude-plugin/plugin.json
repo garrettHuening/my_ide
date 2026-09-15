@@ -1,0 +1,5 @@
+{
+  "name": "cch-main",
+  "version": "0.1.0",
+  "description": "Claude Code Hub core memory: per-prompt retrieval, memory and bug tools, Hub console logging."
+}
