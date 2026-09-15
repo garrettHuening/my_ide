@@ -1,4 +1,4 @@
-# Core memory — as built (2026-09-14)
+# Core memory — as built (2026-09-14, updated with dreaming, docs and subagents)
 
 Design source: `docs/context/core-memory-design-2026-08-26.md`. This file records what exists in code and where it deliberately differs from the design discussion.
 
@@ -15,6 +15,9 @@ Design source: `docs/context/core-memory-design-2026-08-26.md`. This file record
 | Sweep (M3) | `Sweep/Sweep.swift`, `Sources/ClaudeCodeHub/Memory/SweepRunner.swift` | Headless `claude -p` with the `cch-sweep` plugin (memory tools only). Runs on first terminal start of a never-swept git project, or when 20+ commits / 7+ days behind (change-only); session menu → Re-sweep Project runs a full sweep. Scripts tab reads `script` memories (`Command:` first line). |
 | Session continuation (M5) | `Session/SessionSnapshot.swift`, `Sources/cch-mcp/SessionSummarizer.swift` | Hook spawns a detached `cch-mcp snapshot`; condensed transcript → background model (`--tools ""`) → one `session` memory per Claude session, linked `touched_in` to retrieved/cited memories. |
 | Console (M7) | `Console/ConsoleLog.swift`, `Views/Console/ConsoleDrawer.swift` | `console.db`, domain + severity + source; drawer via status bar or ⇧⌘Y; `cch-mcp log --domain … --severity … msg` is the open logging API; `appLog` mirrors into domain `hub`. |
+| Dreaming (M6) | `Dreaming/Dreaming.swift`, `MemoryJobs.dream` | Every 6 h per project with changed memories (or session menu → Core Memory → Dream Now): merges duplicates (`memory_supersede`), fixes stale memories against code, links, flags doc-vs-code conflicts, bumps feature versions under the conservative rule. Verified: merged a planted duplicate, caught a fake claim, made no bump. |
+| Docs (M4) | `Jobs/HeadlessClaude.swift` (`DocsIngestion`), `DocumentationPicker` | Session menu → Core Memory → Add Documentation URL…/Files…: `doc`/`api`/`design` memories forced to `source: doc`, linked `documents` to code, conflicts flagged. Verified: caught two planted doc-vs-code contradictions. |
+| Tool sets | `Tools/MemoryTools.swift` (`Toolset`) | Per-plugin `CCH_TOOLSET`: main, sweep (source code), dream, docs (source doc). |
 | Binary | `Sources/cch-mcp/` | `serve` (stdio MCP), `hook user-prompt-submit|stop|session-snapshot`, `snapshot`, `log`, `sweep-prompt` (debug). |
 
 ## Differences from the design
@@ -28,10 +31,11 @@ Design source: `docs/context/core-memory-design-2026-08-26.md`. This file record
 
 ## Not built yet
 
-M4 documentation ingestion, M6 dreaming (consolidation + conservative feature version bumps), M8 cloud sync, and moving memory into the background helper.
+- M8 cloud sync (needs a server/auth decision). Merged subagent branches already re-tag their memories to the main branch as the promotion marker.
+- Moving sweeps/dreaming/docs jobs into `cch-agentd` so they survive app quit (today: time-limited, marked interrupted on next launch).
 
 ## Develop
 
-- `swift test --filter CCHMemoryTests` (48 tests; `HashingEmbedder` + temp databases).
+- `swift test --filter CCHMemoryTests` (`HashingEmbedder` + temp databases).
 - `scripts/bundle.sh --run` builds and relaunches (kills Claude sessions running inside the Hub).
 - `CCH_SUPPORT_DIR=/some/dir` points `memory.db` / `console.db` elsewhere for manual runs.

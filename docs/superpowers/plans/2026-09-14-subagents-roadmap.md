@@ -6,13 +6,17 @@ The spec spans five subsystems (helper runtime, UI, Claude integration, recovery
 
 | Phase | Plan file | Delivers | Requirements | Status |
 |---|---|---|---|---|
-| 0 | `2026-09-14-subagents-phase0-spike.md` | Throwaway proofs + `spikes/FINDINGS.md` with go/fallback decisions | Risk list §1 | Plan written |
-| 1 | `2026-09-14-subagents-phase1-foundation.md` | git repo, `scripts/bundle.sh`, `CCHCore` library with tested state machine, naming, merge gate/order, recovery planner, hook policy, model resolution | groundwork for R11, R13, R14, R15 | Plan written |
-| 2 | `…-phase2-runtime.md` | `cch-agentd` + `cch-agent-host` + git worktrees + output streaming; app shows a subagent terminal from a debug menu | R6, R7 | Write after Phase 1 |
-| 3 | `…-phase3-ui.md` | Sidebar tabs removed; right panel tabs + Agents toggle + chips; Subagents tab, Main row, main-pane swap, status bar, session dot | R2–R5, L1–L3 | Write after Phase 2 |
-| 4 | `…-phase4-commands.md` | `cch-mcp`, `cch-main`/`cch-sub` plugins, `/task` `/bugfix` `/feature` `/helper`, spawn/list/message tools, Settings → Subagents (per-category default model, per-spawn override, auto-resume toggle), main launch flags + main resume | R1, R10, R15, D11, D14 | Write after Phase 3 |
-| 5 | `…-phase5-recovery.md` | Hooks, `report_status`/`mark_complete`, recovery + auto-resume, read-only complete view | R13, R14 | Write after Phase 4 |
-| 6 | `…-phase6-merge.md` | Merge flow, merge groups/order, cleanup, Done section | R8, R9, R11, R12 | Write after Phase 5 |
+| 0 | `2026-09-14-subagents-phase0-spike.md` | Throwaway proofs + `spikes/FINDINGS.md` with go/fallback decisions | Risk list §1 | Done |
+| 1 | `2026-09-14-subagents-phase1-foundation.md` | git repo, `scripts/bundle.sh`, `CCHCore` library with tested state machine, naming, merge gate/order, recovery planner, hook policy, model resolution | groundwork for R11, R13, R14, R15 | Done |
+| 2 | `…-phase2-runtime.md` | `cch-agentd` + `cch-agent-host` + git worktrees + output streaming; app shows a subagent terminal from a debug menu | R6, R7 | Done (no plan file) |
+| 3 | `…-phase3-ui.md` | Sidebar tabs removed; right panel tabs + Agents toggle + chips; Subagents tab, Main row, main-pane swap, status bar, session dot | R2–R5, L1–L3 | Done (no plan file) |
+| 4 | `…-phase4-commands.md` | `cch-mcp`, `cch-main`/`cch-sub` plugins, `/task` `/bugfix` `/feature` `/helper`, spawn/list/message tools, Settings → Subagents (per-category default model, per-spawn override, auto-resume toggle), main launch flags + main resume | R1, R10, R15, D11, D14 | Done (no plan file) |
+| 5 | `…-phase5-recovery.md` | Hooks, `report_status`/`mark_complete`, recovery + auto-resume, read-only complete view | R13, R14 | Done (no plan file) |
+| 6 | `…-phase6-merge.md` | Merge flow, merge groups/order, cleanup, Done section | R8, R9, R11, R12 | Done (no plan file) |
+
+## Status 2026-09-14 (end of day)
+
+Built out of plan order at the user's request ("finish everything"): core memory M1–M7 first, then subagents phases 0–6 in one pass without writing separate phase 2–6 plan files. See `docs/core-memory.md` and `docs/subagents.md` for what exists, what was verified, and the remaining gaps.
 
 ## Gates
 
