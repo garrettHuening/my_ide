@@ -5,7 +5,7 @@ Native macOS (SwiftUI, macOS 14+) desktop app that wraps the `claude` CLI: a sid
 ## Build, test, run
 
 ```bash
-swift test                      # all unit/integration tests (CCHMemoryTests + CCHSubagentsTests)
+swift test                      # all unit/integration tests (CCHMemoryTests + CCHSubagentsTests + ClaudeCodeHubTests)
 scripts/bundle.sh               # build + assemble signed build/ClaudeCodeHub.app
 scripts/bundle.sh --run         # …and relaunch it
 build/ClaudeCodeHub.app/Contents/MacOS/cch-mcp agentd ensure   # (re)register + start the helper
@@ -37,10 +37,11 @@ Plugins shipped in `Resources/plugins` (loaded per launch with `--plugin-dir`): 
 
 - Colors only from `Theme.swift` (monochrome; no blue/purple).
 - Errors and findings go to the one console (`ConsoleLog`, domain + severity), not bespoke error views. `appLog` mirrors into domain `hub`.
-- Pure rules live in the libraries with XCTest coverage; side effects (git, processes, XPC, SQLite) call them.
+- Pure rules live in the libraries with XCTest coverage; side effects (git, processes, XPC, SQLite) call them. The app target has rules too (`ImportedPathFilter`); SwiftPM 5.9 lets `ClaudeCodeHubTests` depend on the `ClaudeCodeHub` executable target, so they are tested in place.
 - Bugs are append-only and bug learnings frozen — enforced by SQLite triggers; never work around them.
 - Feature version bumps are conservative (see `Dreaming.conservativeBumpRule`).
 - **Sidebar:** sessions can be favorited (`sessions.is_favorite`, gold star); the Favorites/Active/All pill row filters the list; `GitHubDetector` flags git repos whose `origin` is on github.com and `GitHubMark` draws the octocat from its SVG path.
+- **Session import:** `SessionImporter.scan()` asks `ImportedPathFilter.shouldSkip`-style rules before creating a row and purges rows an older build imported; transient locations (`/tmp`, `/var/folders`, `$TMPDIR`, `TemporaryItems`, `NSIRD_*`) never become sessions. macOS denies listing `TemporaryItems` (EPERM, even unsandboxed), so `decodeProjectName` cannot walk into it — the path rule, not a filesystem check, is what catches those.
 - **Sandbox escape hatch:** `ShellTools` provides the `run_outside_sandbox` MCP tool (main + subagent roles) that runs a command outside the Bash sandbox via a written script, logged to console domain `shell`; a `PostToolUse(Bash)` hook advises Claude to use it on sandbox denials. Claude decides — nothing bypasses silently.
 - Claude Code facts verified here: plugin MCP tools are named `mcp__plugin_<plugin>_<server>__<tool>`; plugin **commands** are namespaced-only but plugin **skills** work unprefixed; the folder-trust prompt defaults to "No, exit" (Down + Enter accepts); `UserPromptSubmit` `additionalContext` works in `-p` and interactive.
 
