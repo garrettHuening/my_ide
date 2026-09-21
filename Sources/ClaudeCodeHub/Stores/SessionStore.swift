@@ -148,6 +148,28 @@ final class SessionStore: ObservableObject {
         }
     }
 
+    /// Remove imported sessions the importer would no longer accept (e.g. temp
+    /// locations added before `ImportedPathFilter` existed). Manual sessions are
+    /// preserved — the user may have pointed one at /tmp deliberately.
+    @discardableResult
+    func purgeImports(where shouldPurge: (Session) -> Bool) -> Int {
+        let doomed = sessions.filter { $0.source == .imported && shouldPurge($0) }
+        guard !doomed.isEmpty else { return 0 }
+        var removed = 0
+        for session in doomed {
+            do {
+                try db.writeStatement("DELETE FROM sessions WHERE id=?", [session.id])
+                if activeSessionID == session.id { activeSessionID = nil }
+                removed += 1
+                appLog("[SessionStore] purged filtered import id=\(session.id) dir=\(session.workingDir)")
+            } catch {
+                appLog("[SessionStore] purgeImports failed for id=\(session.id): \(error)")
+            }
+        }
+        reload()
+        return removed
+    }
+
     func rename(_ id: Int64, to newName: String) {
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }

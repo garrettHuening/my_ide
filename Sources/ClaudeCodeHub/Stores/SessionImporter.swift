@@ -49,13 +49,6 @@ final class SessionImporter: ObservableObject {
             return 0
         }
 
-        let skipPaths: Set<String> = [
-            NSHomeDirectory(),
-            "/",
-            "/tmp",
-            "/var"
-        ]
-
         var workingDirs = Set<String>()
         var inputs: [SessionStore.NewSession] = []
         for entry in contents {
@@ -73,8 +66,12 @@ final class SessionImporter: ObservableObject {
                 resolvedWorkingDir = entry.path
             }
 
-            if skipPaths.contains(resolvedWorkingDir) {
-                appLog("[Importer] skip system path: \(resolvedWorkingDir)")
+            if let reason = ImportedPathFilter.skipReason(for: resolvedWorkingDir) {
+                appLog("[Importer] skip system path: \(resolvedWorkingDir) (\(reason))")
+                continue
+            }
+            if Self.isExistingFile(resolvedWorkingDir) {
+                appLog("[Importer] skip system path: \(resolvedWorkingDir) (not a directory)")
                 continue
             }
 
@@ -92,6 +89,14 @@ final class SessionImporter: ObservableObject {
 
         // Drop previous-source imports so the sidebar stays scoped to current dir.
         sessions.purgeImportsNotFrom(dir)
+        // Rows an older build imported before the filter above existed (BUG-1).
+        // Done on every scan rather than as a one-shot migration so that later
+        // additions to the rule clean up after themselves too.
+        let purged = sessions.purgeImports { session in
+            ImportedPathFilter.skipReason(for: session.workingDir) != nil
+                || Self.isExistingFile(session.workingDir)
+        }
+        if purged > 0 { appLog("[Importer] purged \(purged) filtered import(s)") }
 
         let added = sessions.importSessions(inputs)
         sessions.markMissing(workingDirs: workingDirs, importedFrom: dir)
@@ -100,6 +105,14 @@ final class SessionImporter: ObservableObject {
         lastRunAt = Date()
         appLog("[Importer] scanned \(inputs.count), added \(added), state dir=\(dir)")
         return added
+    }
+
+    /// True when the path exists but is a plain file. `decodeProjectName` walks
+    /// the filesystem segment by segment and happily lands on one, so a dragged
+    /// screenshot's `.png` can look like a working directory.
+    static func isExistingFile(_ path: String) -> Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDir) && !isDir.boolValue
     }
 
     /// Decode Claude's project folder name back to a real path.
