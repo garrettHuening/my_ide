@@ -8,6 +8,7 @@ Native macOS (SwiftUI, macOS 14+) desktop app that wraps the `claude` CLI: a sid
 swift test                      # all unit/integration tests (CCHMemoryTests + CCHSubagentsTests + ClaudeCodeHubTests)
 scripts/bundle.sh               # build + assemble signed build/ClaudeCodeHub.app
 scripts/bundle.sh --run         # …and relaunch it
+scripts/rebuild.sh              # build + test + bundle; never relaunches (safe while sessions are live)
 build/ClaudeCodeHub.app/Contents/MacOS/cch-mcp agentd ensure   # (re)register + start the helper
 ```
 
