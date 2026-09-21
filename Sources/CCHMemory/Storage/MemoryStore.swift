@@ -41,6 +41,20 @@ public final class MemoryStore {
         if let existing = try db.queryOne("SELECT id, key, name, root FROM projects WHERE key = ?", [resolved.key], map: Self.project) {
             return existing
         }
+        // The same checkout resolves to a different key once an `origin` is added or removed, so
+        // adopt the row already keyed to this root rather than starting a second project. A split
+        // strands the memories and orphans the bug ledger permanently: the append-only triggers
+        // forbid rewriting bugs.project_id, so those rows can never be moved across.
+        if let sameRoot = try db.queryOne("SELECT id, key, name, root FROM projects WHERE root = ? ORDER BY id LIMIT 1",
+                                          [resolved.root], map: Self.project) {
+            // Only ever upgrade path -> remote. Downgrading would replace the identity every other
+            // checkout and worktree of the repo resolves to with a path local to this machine.
+            guard ProjectKey.isRemoteKey(resolved.key), !ProjectKey.isRemoteKey(sameRoot.key) else {
+                return sameRoot
+            }
+            try db.run("UPDATE projects SET key = ?, name = ? WHERE id = ?", [resolved.key, resolved.name, sameRoot.id])
+            return Project(id: sameRoot.id, key: resolved.key, name: resolved.name, root: sameRoot.root)
+        }
         try db.run("INSERT OR IGNORE INTO projects(key, name, root, created_at) VALUES (?, ?, ?, ?)",
                    [resolved.key, resolved.name, resolved.root, Date()])
         guard let created = try db.queryOne("SELECT id, key, name, root FROM projects WHERE key = ?", [resolved.key], map: Self.project) else {

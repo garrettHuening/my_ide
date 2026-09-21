@@ -41,6 +41,12 @@ public enum ProjectKey {
         return parts.joined(separator: "/").lowercased()
     }
 
+    /// Whether a key identifies a repository by its shared remote rather than by a path on this
+    /// machine. Remote keys are `host/owner/name`; the path fallback is always absolute.
+    public static func isRemoteKey(_ key: String) -> Bool {
+        !key.hasPrefix("/")
+    }
+
     /// Resolves a directory to its project. Uses git when available; a non-git folder is its
     /// own project keyed by its standardized path.
     public static func resolve(directory: String, git: GitRunner = GitRunner()) -> ResolvedProject {
