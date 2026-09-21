@@ -64,6 +64,11 @@ let package = Package(
             name: "CCHMemoryTests",
             dependencies: ["CCHMemory"],
             path: "Tests/CCHMemoryTests"
+        ),
+        .testTarget(
+            name: "ClaudeCodeHubTests",
+            dependencies: ["ClaudeCodeHub"],
+            path: "Tests/ClaudeCodeHubTests"
         )
     ]
 )
